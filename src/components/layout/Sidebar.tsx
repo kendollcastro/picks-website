@@ -12,7 +12,6 @@ import {
   Volleyball,
   Radio,
   BarChart3,
-  Trophy,
   User,
   Settings,
   LogOut,
@@ -44,12 +43,6 @@ const navItems = [
     href: '/stats', 
     label: 'Stats', 
     icon: BarChart3,
-    badge: null,
-  },
-  { 
-    href: '/leaderboard', 
-    label: 'Leaderboard', 
-    icon: Trophy,
     badge: null,
   },
   { 

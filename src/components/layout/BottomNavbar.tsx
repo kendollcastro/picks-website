@@ -11,7 +11,6 @@ import {
   BarChart3,
   User,
   MoreHorizontal,
-  Trophy,
   Settings,
 } from 'lucide-react';
 
@@ -24,7 +23,6 @@ const mainNavItems = [
 ];
 
 const moreNavItems = [
-  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
