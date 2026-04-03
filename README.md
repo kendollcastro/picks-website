@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KCMPICKS - Sports Betting Tracker
 
-## Getting Started
+> Track your picks. Beat the odds.
 
-First, run the development server:
+## 🚀 Quick Start
 
+### 1. Install Dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Set Up Supabase
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Create a project at [supabase.com](https://supabase.com)
+2. Go to **SQL Editor** and run the schema from `supabase/schema.sql`
+3. Go to **Authentication > Providers** and enable:
+   - Email (enabled by default)
+   - Google (add your OAuth credentials)
+4. Copy `.env.example` to `.env.local` and add your keys:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env.local
+```
 
-## Learn More
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Run Development Server
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🏗️ Tech Stack
 
-## Deploy on Vercel
+- **Framework:** Next.js 16 (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS 4
+- **Database:** Supabase (PostgreSQL)
+- **Auth:** Supabase Auth (Google + Email)
+- **Animations:** Framer Motion
+- **Charts:** Recharts
+- **State:** Zustand
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📁 Project Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/
+│   ├── (auth)/           # Login, Register pages
+│   ├── (dashboard)/      # Protected dashboard pages
+│   │   ├── dashboard/    # Main dashboard
+│   │   ├── picks/        # Picks management
+│   │   ├── live/         # Live scores
+│   │   ├── stats/        # Statistics
+│   │   ├── profile/      # User profile
+│   │   └── leaderboard/  # Rankings
+│   └── page.tsx          # Landing page
+├── components/
+│   ├── layout/           # TopAppBar, BottomNavbar, FAB
+│   └── ui/               # Reusable UI components
+├── lib/
+│   ├── supabase/         # Supabase clients
+│   ├── utils/            # Utility functions
+│   └── constants/        # Sports data, achievements
+└── types/                # TypeScript types
+```
+
+## 🎨 Design System
+
+The design follows the "Digital Arena" aesthetic:
+- **Fonts:** Space Grotesk (headlines), Inter (body)
+- **Primary:** #0066FF (Electric Blue)
+- **Tertiary:** #00e479 (Neon Green)
+- **Surface:** #131318 (Deep Dark)
+- **Glassmorphism** effects throughout
+- **Mobile-first** with bottom navigation
+
+## 📱 Features
+
+- ✅ Landing page with live ticker
+- ✅ Login/Register with Google OAuth
+- ✅ Dashboard with stats & charts
+- ✅ Live scores with real-time updates
+- ✅ Picks management (CRUD)
+- ✅ Statistics & analytics
+- ✅ Profile with achievements
+- ✅ Leaderboard rankings
+- ✅ Dark theme (Digital Arena)
+- ✅ Responsive mobile-first design
+
+## 🏈 Supported Sports
+
+- NBA
+- NFL
+- MLB
+- Soccer
+- UFC
+- College Football
+- College Basketball
+- Women's Basketball (WNBA)
+
+## 📄 License
+
+Private - KCMPICKS

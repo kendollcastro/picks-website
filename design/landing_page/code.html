@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>KCM PICKS | Track Your Picks. Beat the Odds.</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-secondary-fixed-variant": "#661aa3",
+              "surface-tint": "#b3c5ff",
+              "on-tertiary-container": "#e2ffe4",
+              "secondary-fixed": "#f1dbff",
+              "error": "#ffb4ab",
+              "inverse-primary": "#0054d6",
+              "outline": "#8c90a1",
+              "surface-variant": "#35343a",
+              "inverse-on-surface": "#303036",
+              "surface": "#131318",
+              "surface-container": "#1f1f25",
+              "surface-container-low": "#1b1b20",
+              "surface-bright": "#39383e",
+              "surface-container-high": "#2a292f",
+              "on-primary": "#002b75",
+              "on-secondary-fixed": "#2d0050",
+              "surface-container-lowest": "#0e0e13",
+              "on-secondary": "#4a007f",
+              "on-tertiary-fixed-variant": "#005228",
+              "on-secondary-container": "#d5a4ff",
+              "tertiary": "#00e479",
+              "surface-dim": "#131318",
+              "on-error-container": "#ffdad6",
+              "tertiary-fixed": "#60ff99",
+              "primary-container": "#0066ff",
+              "error-container": "#93000a",
+              "on-primary-fixed": "#001849",
+              "tertiary-container": "#008343",
+              "outline-variant": "#424656",
+              "secondary-fixed-dim": "#dfb7ff",
+              "on-primary-container": "#f8f7ff",
+              "on-tertiary": "#003919",
+              "tertiary-fixed-dim": "#00e479",
+              "on-primary-fixed-variant": "#003fa4",
+              "on-error": "#690005",
+              "secondary": "#dfb7ff",
+              "surface-container-highest": "#35343a",
+              "on-surface": "#e4e1e9",
+              "inverse-surface": "#e4e1e9",
+              "on-background": "#e4e1e9",
+              "background": "#131318",
+              "secondary-container": "#691ea6",
+              "on-surface-variant": "#c2c6d8",
+              "primary": "#b3c5ff",
+              "primary-fixed-dim": "#b3c5ff",
+              "on-tertiary-fixed": "#00210c",
+              "primary-fixed": "#dae1ff"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      body { background-color: #131318; color: #e4e1e9; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+      .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+      .glass-card { background: rgba(31, 31, 37, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+      .ticker-wrap { overflow: hidden; white-space: nowrap; }
+      .ticker-move { display: inline-block; animation: ticker 30s linear infinite; }
+      @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-950/60 backdrop-blur-xl shadow-[0_0_20px_rgba(0,102,255,0.15)]">
+<div class="flex justify-between items-center px-6 py-4 w-full max-w-none">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden border border-white/10">
+<img alt="user profile avatar" class="w-full h-full object-cover" data-alt="professional male portrait with confident expression, dramatic cinematic studio lighting, dark neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5HicTEZK3fzmIdrVPB8jncFubehr39TpEaCjs4eA90u0hmcd4DW1i3knRSQbQQ_TFdHNnTxaSHGLsMyR7AxBhVdWZf4vOkEfw9bRP0NXRVLGRQdLVVGZ0cTmofEqh4cKM9J7bkD3f36i8okkZjDBdQK6wBWe60bASOehw01X21qzRAobRgFEx1VHgDS3CGU98y4d76jhdecrwWPKIU5XrDF0fA7vwTCuqpTGkkKwTuWVSyGA0n_z4sA6hD4yqeCzFhrfa4btzsx7C"/>
+</div>
+<span class="text-2xl font-black italic tracking-tighter text-blue-600 dark:text-blue-500 font-['Space_Grotesk']">KCM PICKS</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-slate-400 hover:opacity-80 transition-opacity active:scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+</div>
+</div>
+<div class="bg-gradient-to-r from-blue-500/10 to-purple-500/10 h-[1px]"></div>
+</header>
+<main class="pt-20 pb-32">
+<!-- Hero Section -->
+<section class="relative min-h-[751px] flex flex-col justify-center px-6 overflow-hidden">
+<!-- Atmospheric Glows -->
+<div class="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-primary-container/20 blur-[120px] rounded-full"></div>
+<div class="absolute bottom-[-5%] left-[-10%] w-[50%] h-[50%] bg-tertiary-container/10 blur-[100px] rounded-full"></div>
+<!-- Hero Content -->
+<div class="relative z-10 max-w-4xl mx-auto text-center md:text-left">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-6">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+<span class="font-label text-[10px] uppercase tracking-[0.2em] font-bold text-on-surface-variant">Live Analysis Active</span>
+</div>
+<h1 class="font-headline text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] mb-6">
+                    Track your picks.<br/>
+<span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-container">Beat the odds.</span>
+</h1>
+<p class="font-body text-lg md:text-xl text-on-surface-variant max-w-xl mb-10 leading-relaxed">
+                    Access elite data visualization for NBA and NFL. Join the top 1% of tactical analysts using our proprietary algorithm.
+                </p>
+<div class="flex flex-col md:flex-row gap-4">
+<button class="bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-headline font-bold py-4 px-8 rounded-xl shadow-[0_0_24px_rgba(0,102,255,0.4)] active:scale-95 transition-all text-center">
+                        Join the Elite
+                    </button>
+<button class="bg-white/5 backdrop-blur-md border border-white/10 text-on-surface font-headline font-bold py-4 px-8 rounded-xl hover:bg-white/10 transition-all text-center">
+                        Explore Picks
+                    </button>
+</div>
+</div>
+<!-- Stats Grid (Hero Visual) -->
+<div class="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto w-full">
+<div class="glass-card rounded-xl p-6 relative overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Success Rate</p>
+<h3 class="font-headline text-4xl font-bold text-tertiary">82%</h3>
+<p class="font-label text-[10px] text-tertiary/60 mt-1">Last 30 Days</p>
+</div>
+<div class="glass-card rounded-xl p-6 relative overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Community</p>
+<h3 class="font-headline text-4xl font-bold text-primary">10k+</h3>
+<p class="font-label text-[10px] text-primary/60 mt-1">Active Users</p>
+</div>
+<div class="glass-card rounded-xl p-6 relative overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Total ROI</p>
+<h3 class="font-headline text-4xl font-bold text-on-surface">+14.2%</h3>
+<p class="font-label text-[10px] text-on-surface-variant mt-1">Avg per pick</p>
+</div>
+<div class="glass-card rounded-xl p-6 relative overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-br from-secondary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Live Feeds</p>
+<h3 class="font-headline text-4xl font-bold text-secondary">24/7</h3>
+<p class="font-label text-[10px] text-secondary/60 mt-1">Global Coverage</p>
+</div>
+</div>
+</section>
+<!-- Live Ticker -->
+<div class="w-full bg-surface-container-lowest py-4 border-y border-white/5 relative overflow-hidden">
+<div class="ticker-wrap flex">
+<div class="ticker-move flex gap-8 items-center">
+<span class="flex items-center gap-3">
+<span class="font-label font-bold text-on-surface-variant">Lakers v Warriors</span>
+<span class="text-tertiary font-headline font-black">WIN +120</span>
+</span>
+<span class="w-2 h-2 rounded-full bg-white/10"></span>
+<span class="flex items-center gap-3">
+<span class="font-label font-bold text-on-surface-variant">Chiefs v Bills</span>
+<span class="text-tertiary font-headline font-black">WIN -110</span>
+</span>
+<span class="w-2 h-2 rounded-full bg-white/10"></span>
+<span class="flex items-center gap-3">
+<span class="font-label font-bold text-on-surface-variant">Celtics v Heat</span>
+<span class="text-tertiary font-headline font-black">WIN +155</span>
+</span>
+<span class="w-2 h-2 rounded-full bg-white/10"></span>
+<span class="flex items-center gap-3">
+<span class="font-label font-bold text-on-surface-variant">Eagles v Giants</span>
+<span class="text-tertiary font-headline font-black">WIN -105</span>
+</span>
+<!-- Duplicated for seamless scroll -->
+<span class="w-2 h-2 rounded-full bg-white/10"></span>
+<span class="flex items-center gap-3">
+<span class="font-label font-bold text-on-surface-variant">Lakers v Warriors</span>
+<span class="text-tertiary font-headline font-black">WIN +120</span>
+</span>
+<span class="w-2 h-2 rounded-full bg-white/10"></span>
+<span class="flex items-center gap-3">
+<span class="font-label font-bold text-on-surface-variant">Chiefs v Bills</span>
+<span class="text-tertiary font-headline font-black">WIN -110</span>
+</span>
+<span class="w-2 h-2 rounded-full bg-white/10"></span>
+<span class="flex items-center gap-3">
+<span class="font-label font-bold text-on-surface-variant">Celtics v Heat</span>
+<span class="text-tertiary font-headline font-black">WIN +155</span>
+</span>
+<span class="w-2 h-2 rounded-full bg-white/10"></span>
+<span class="flex items-center gap-3">
+<span class="font-label font-bold text-on-surface-variant">Eagles v Giants</span>
+<span class="text-tertiary font-headline font-black">WIN -105</span>
+</span>
+</div>
+</div>
+</div>
+<!-- Bento Grid Feature Section -->
+<section class="px-6 mt-24 max-w-7xl mx-auto">
+<h2 class="font-headline text-3xl font-bold mb-12 flex items-center gap-4">
+<span class="w-12 h-[2px] bg-primary"></span>
+                THE PRO EDGE
+            </h2>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 h-auto md:h-[600px]">
+<div class="md:col-span-8 glass-card rounded-2xl p-8 relative group overflow-hidden">
+<img alt="NBA stats visual" class="absolute inset-0 w-full h-full object-cover opacity-20 group-hover:scale-105 transition-transform duration-700" data-alt="abstract high-tech visualization of basketball court with digital data overlays, neon blue lines, and glowing statistics, futuristic sports analytic aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSetRcv2-PqdOLmoXpBuwAqg5UzNGoDuWxoUwAhnrxOQeXQojb3cxZiomIND0j8uKPPCAfa3VOcb5pmmCp8D5PStV2oGkeYwqGuHsiLeu6bRLe9hUNVWPt4GKNOmKIyrbXfAkzyWswSeXIVe77upU8RBdsYCPSYQIEQzEce3yROJkPJeckGBHFSKOSgCzaiVqJmL8H6dIfmKmzgFDlZwRUCs-00UZ9RaZONPI7HYc1YBoqKsekkzoaVKXqHc90j4trl-gBnPwq6e6f"/>
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div>
+<span class="text-primary font-label text-xs tracking-widest uppercase font-bold">Data Visualization</span>
+<h3 class="text-4xl font-headline font-black mt-4 max-w-md">Real-time NBA Heat Maps &amp; Shot Charts</h3>
+</div>
+<div class="mt-8">
+<button class="bg-white text-surface px-6 py-3 rounded-lg font-bold font-headline flex items-center gap-2">
+                                View Analytics
+                                <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<div class="md:col-span-4 glass-card rounded-2xl p-8 flex flex-col justify-between border-tertiary/20">
+<span class="material-symbols-outlined text-tertiary text-4xl" data-icon="monitoring">monitoring</span>
+<div>
+<h3 class="text-2xl font-headline font-bold mb-4">Win Probability Engine</h3>
+<p class="font-body text-sm text-on-surface-variant leading-relaxed">
+                            Our AI simulates games 10,000 times to find the most profitable discrepancies in market pricing.
+                        </p>
+</div>
+<div class="pt-6 border-t border-white/5">
+<div class="flex items-center justify-between">
+<span class="text-xs font-label font-bold text-on-surface-variant uppercase">NFL Model V4.2</span>
+<span class="text-xs text-tertiary font-bold">ACTIVE</span>
+</div>
+</div>
+</div>
+<div class="md:col-span-4 glass-card rounded-2xl p-8 flex flex-col justify-between">
+<div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="lock">lock</span>
+</div>
+<div>
+<h3 class="text-2xl font-headline font-bold mb-4">Elite Tier Access</h3>
+<p class="font-body text-sm text-on-surface-variant">
+                            Unlock restricted data points used by professional syndicate bettors.
+                        </p>
+</div>
+</div>
+<div class="md:col-span-8 glass-card rounded-2xl p-8 flex flex-col md:flex-row gap-8 items-center">
+<div class="flex-1">
+<h3 class="text-2xl font-headline font-bold mb-4">Mobile Performance Tracker</h3>
+<p class="font-body text-sm text-on-surface-variant mb-6">
+                            Manage your bankroll and track every pick with our integrated dashboard. Seamlessly syncs with your sportsbook.
+                        </p>
+<div class="flex gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="check_circle">check_circle</span>
+<span class="text-xs font-label">Bankroll MGMT</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="check_circle">check_circle</span>
+<span class="text-xs font-label">Pick Alerts</span>
+</div>
+</div>
+</div>
+<div class="w-full md:w-48 aspect-square rounded-xl bg-surface-container-highest overflow-hidden border border-white/5">
+<img alt="mobile app UI" class="w-full h-full object-cover grayscale brightness-75 hover:grayscale-0 transition-all duration-500" data-alt="macro close-up of a sleek smartphone screen displaying vibrant neon green and blue trading charts against a dark interface, futuristic digital aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBiJZYuUTe5Yn-GCnQDUB3agWRQ0YVd2pORQ0g7KS98Xra29WkMt72jregBb3jEyAHsIQvZ10LPFlMR8b8xN80Hqq45QPbu2LO9q2epognrGsPRrAmvbJGWQkrVnG8PjtU4FWA6JcjyOWOP3b1J5lYugccDg4_JwNACuR_uSfEpLQU4dqlBliiTu78d5VBTOsJShk6_IaMYzhWFHL55RaxcafgRRRxee6BxeZ4PB2pIV6nd8dNBtcDHcJYZb_rEhdpFgaI91R7tOpjZ"/>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="px-6 mt-32 mb-20 text-center max-w-4xl mx-auto">
+<div class="relative py-20 px-8 rounded-3xl overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-tr from-primary-container/40 to-tertiary-container/10"></div>
+<div class="absolute inset-0 backdrop-blur-3xl"></div>
+<div class="relative z-10">
+<h2 class="font-headline text-4xl md:text-6xl font-black mb-6 tracking-tight">READY TO WIN?</h2>
+<p class="font-body text-on-surface-variant text-lg mb-10 max-w-xl mx-auto">
+                        Stop guessing. Start winning. Join thousands of analysts today and secure your edge.
+                    </p>
+<button class="bg-on-surface text-surface font-headline font-bold py-5 px-12 rounded-xl text-xl hover:scale-105 transition-transform">
+                        Create Your Free Account
+                    </button>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-slate-950/60 backdrop-blur-2xl border-t border-white/5 shadow-[0_-4px_24px_rgba(0,102,255,0.1)] rounded-t-2xl">
+<a class="flex flex-col items-center justify-center text-blue-500 bg-blue-500/10 rounded-xl px-3 py-1 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold">Dashboard</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="sports_basketball">sports_basketball</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold">Sports</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="sensors">sensors</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold">Live</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="leaderboard">leaderboard</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold">Stats</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold">Profile</span>
+</a>
+</nav>
+</body></html>

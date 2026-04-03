@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+
+<html class="dark"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-tint": "#b3c5ff",
+                        "on-tertiary-container": "#e2ffe4",
+                        "error": "#ffb4ab",
+                        "outline": "#8c90a1",
+                        "surface": "#131318",
+                        "surface-container": "#1f1f25",
+                        "surface-container-low": "#1b1b20",
+                        "surface-container-high": "#2a292f",
+                        "on-primary": "#002b75",
+                        "tertiary": "#00e479",
+                        "primary-container": "#0066ff",
+                        "error-container": "#93000a",
+                        "on-primary-container": "#f8f7ff",
+                        "on-tertiary": "#003919",
+                        "surface-container-highest": "#35343a",
+                        "on-surface": "#e4e1e9",
+                        "on-surface-variant": "#c2c6d8",
+                        "primary": "#b3c5ff",
+                        "outline-variant": "#424656",
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(31, 31, 37, 0.6);
+            backdrop-filter: blur(20px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-container/30">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-950/60 backdrop-blur-xl flex justify-between items-center px-6 py-4 w-full max-w-none shadow-[0_0_20px_rgba(0,102,255,0.15)]">
+<div class="flex items-center gap-3">
+<div class="relative w-10 h-10 rounded-full border-2 border-primary-container overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Close up portrait of a professional sports analyst with a confident expression, soft studio lighting, tech-focused background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxZzs-NAvrTmmdOXabB8tciv3gB-Xl2wV9phMYVYs4PlXcuyZyCx7NKuLE3xpFGphdM7bR8o9uphLIdVNHfuYky_E522B0FfVciiZJ9MCLhkKKU6cFnXQbxK11NEMLrM47Oerf1b4uCGK07KS1zm9pgCq2jE4_zKs7J0Sps5S6KREv-J7DnLiGYCdSfOYRF2jGDTD0JJonVscO4A7jO321mxQOAW5oGKGE0UXv2Qlhor-eDJQnBMT6SnPufUf6Ok3TzzUm3lVgLPuS"/>
+</div>
+<h1 class="text-2xl font-black italic tracking-tighter text-blue-600 dark:text-blue-500 font-headline">KCM PICKS</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-slate-400 hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+</div>
+<div class="absolute bottom-0 left-0 w-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 h-[1px]"></div>
+</header>
+<main class="pt-24 pb-32 px-4 max-w-md mx-auto space-y-8">
+<!-- Profile Header Section -->
+<section class="flex flex-col items-center text-center space-y-4">
+<div class="relative group">
+<div class="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-primary via-tertiary to-primary-container shadow-[0_0_30px_rgba(0,102,255,0.2)]">
+<div class="w-full h-full rounded-full overflow-hidden border-4 border-surface">
+<img class="w-full h-full object-cover" data-alt="Professional sports analyst avatar, modern lighting, clear facial features, blue and green atmospheric rim light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWG5k55Xqc3sl0t18VnRwCClAbw-LooLVcQR6xrFK9b6Ukf9NTChcq3hRg7oiNvBmEUOkoQztLpgd3JqkgBXcpxA9-xf4QhFK9gWgLqEAfs3Ej7oDUDmzBQ8zguzGfxTka7ytMbl8GvjfuKDn-paSYtmIgozUH1CPndCq76eukKj7ujGD7s8wvNI4C-QwBsuShaskMZewhwFaVTXa2cGpxPEeNjTNNrfnTObEIkCUQzhKPer4BYxa-ieGJsR1-iWTeQChr0nBlQhsg"/>
+</div>
+</div>
+<button class="absolute bottom-1 right-1 bg-primary-container text-on-primary-container w-10 h-10 rounded-full flex items-center justify-center border-4 border-surface shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+</button>
+</div>
+<div class="space-y-1">
+<h2 class="font-headline text-3xl font-bold tracking-tight uppercase">KCMPICKS PRO</h2>
+<div class="flex items-center justify-center gap-2">
+<span class="bg-primary-container/10 text-primary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-primary/20">Elite Tier</span>
+<span class="bg-tertiary/10 text-tertiary px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-tertiary/20">10 Win Streak</span>
+</div>
+</div>
+</section>
+<!-- Stats Bento Grid -->
+<section class="grid grid-cols-2 gap-3">
+<div class="bg-surface-container-high rounded-xl p-4 flex flex-col justify-between aspect-square border border-white/5">
+<span class="text-on-surface-variant text-[10px] font-bold uppercase tracking-widest">Total Picks</span>
+<div>
+<div class="text-3xl font-headline font-black text-primary">1,284</div>
+<div class="text-[10px] text-tertiary flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="trending_up">trending_up</span>
+                        +12% vs last month
+                    </div>
+</div>
+</div>
+<div class="bg-surface-container-high rounded-xl p-4 flex flex-col justify-between aspect-square border border-white/5">
+<span class="text-on-surface-variant text-[10px] font-bold uppercase tracking-widest">Win Rate</span>
+<div>
+<div class="text-3xl font-headline font-black text-white">68.4%</div>
+<div class="h-1.5 w-full bg-white/10 rounded-full mt-3 overflow-hidden">
+<div class="h-full bg-tertiary w-[68%] shadow-[0_0_10px_#00e479]"></div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-high rounded-xl p-4 flex flex-col justify-between aspect-square border border-white/5">
+<span class="text-on-surface-variant text-[10px] font-bold uppercase tracking-widest">ROI (Yearly)</span>
+<div>
+<div class="text-3xl font-headline font-black text-tertiary">+24%</div>
+<div class="text-[10px] text-on-surface-variant mt-1">Net profit: $12.4k</div>
+</div>
+</div>
+<div class="bg-surface-container-high rounded-xl p-4 flex flex-col justify-between aspect-square border border-white/5">
+<span class="text-on-surface-variant text-[10px] font-bold uppercase tracking-widest">Hot Streak</span>
+<div class="flex items-end gap-2">
+<div class="text-3xl font-headline font-black text-primary">10</div>
+<span class="material-symbols-outlined text-tertiary mb-1 animate-pulse" data-icon="local_fire_department" data-weight="fill" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+</div>
+</div>
+</section>
+<!-- Pick History -->
+<section class="space-y-4">
+<div class="flex justify-between items-center px-1">
+<h3 class="font-headline font-bold uppercase tracking-wider text-sm">Recent Activity</h3>
+<button class="text-primary text-[10px] font-bold uppercase tracking-widest hover:opacity-70 transition-opacity">View All</button>
+</div>
+<div class="space-y-3">
+<!-- Pick Card 1 -->
+<div class="bg-surface-container-low rounded-xl p-4 flex items-center justify-between border-l-4 border-tertiary">
+<div class="flex gap-4 items-center">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="sports_basketball">sports_basketball</span>
+</div>
+<div>
+<div class="text-sm font-bold">Lakers vs Warriors</div>
+<div class="text-[10px] text-on-surface-variant uppercase tracking-wider font-medium">U 224.5 • -110 Odds</div>
+</div>
+</div>
+<div class="text-right">
+<div class="text-tertiary text-xs font-black uppercase tracking-tighter">WIN</div>
+<div class="text-[10px] text-on-surface-variant">2h ago</div>
+</div>
+</div>
+<!-- Pick Card 2 -->
+<div class="bg-surface-container-low rounded-xl p-4 flex items-center justify-between border-l-4 border-tertiary">
+<div class="flex gap-4 items-center">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="sports_football">sports_football</span>
+</div>
+<div>
+<div class="text-sm font-bold">Chiefs ML</div>
+<div class="text-[10px] text-on-surface-variant uppercase tracking-wider font-medium">NFL • +145 Odds</div>
+</div>
+</div>
+<div class="text-right">
+<div class="text-tertiary text-xs font-black uppercase tracking-tighter">WIN</div>
+<div class="text-[10px] text-on-surface-variant">6h ago</div>
+</div>
+</div>
+<!-- Pick Card 3 -->
+<div class="bg-surface-container-low rounded-xl p-4 flex items-center justify-between border-l-4 border-error">
+<div class="flex gap-4 items-center">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="sports_soccer">sports_soccer</span>
+</div>
+<div>
+<div class="text-sm font-bold">Liverpool -1</div>
+<div class="text-[10px] text-on-surface-variant uppercase tracking-wider font-medium">EPL • -120 Odds</div>
+</div>
+</div>
+<div class="text-right">
+<div class="text-error text-xs font-black uppercase tracking-tighter">LOSS</div>
+<div class="text-[10px] text-on-surface-variant">Yesterday</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Settings Section -->
+<section class="space-y-4">
+<h3 class="font-headline font-bold uppercase tracking-wider text-sm px-1">Settings &amp; Sync</h3>
+<div class="bg-surface-container-high rounded-2xl overflow-hidden border border-white/5">
+<div class="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="notifications_active">notifications_active</span>
+<div>
+<div class="text-sm font-bold">Push Notifications</div>
+<div class="text-[10px] text-on-surface-variant">Instant alerts for new picks</div>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
+</label>
+</div>
+<div class="h-[1px] bg-white/5 mx-4"></div>
+<div class="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="api">api</span>
+<div>
+<div class="text-sm font-bold">API Connections</div>
+<div class="text-[10px] text-on-surface-variant">DraftKings &amp; FanDuel Sync</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="chevron_right">chevron_right</span>
+</div>
+<div class="h-[1px] bg-white/5 mx-4"></div>
+<div class="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-error" data-icon="logout">logout</span>
+<div class="text-sm font-bold text-error">Logout</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-slate-950/60 backdrop-blur-2xl border-t border-white/5 shadow-[0_-4px_24px_rgba(0,102,255,0.1)]">
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Dashboard</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="sports_basketball">sports_basketball</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Sports</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="sensors">sensors</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Live</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="leaderboard">leaderboard</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Stats</span>
+</div>
+<div class="flex flex-col items-center justify-center text-blue-500 bg-blue-500/10 rounded-xl px-3 py-1 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="person" data-weight="fill" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Profile</span>
+</div>
+</nav>
+</body></html>

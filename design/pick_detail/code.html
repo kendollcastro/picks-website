@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-secondary-fixed-variant": "#661aa3",
+              "surface-tint": "#b3c5ff",
+              "on-tertiary-container": "#e2ffe4",
+              "secondary-fixed": "#f1dbff",
+              "error": "#ffb4ab",
+              "inverse-primary": "#0054d6",
+              "outline": "#8c90a1",
+              "surface-variant": "#35343a",
+              "inverse-on-surface": "#303036",
+              "surface": "#131318",
+              "surface-container": "#1f1f25",
+              "surface-container-low": "#1b1b20",
+              "surface-bright": "#39383e",
+              "surface-container-high": "#2a292f",
+              "on-primary": "#002b75",
+              "on-secondary-fixed": "#2d0050",
+              "surface-container-lowest": "#0e0e13",
+              "on-secondary": "#4a007f",
+              "on-tertiary-fixed-variant": "#005228",
+              "on-secondary-container": "#d5a4ff",
+              "tertiary": "#00e479",
+              "surface-dim": "#131318",
+              "on-error-container": "#ffdad6",
+              "tertiary-fixed": "#60ff99",
+              "primary-container": "#0066ff",
+              "error-container": "#93000a",
+              "on-primary-fixed": "#001849",
+              "tertiary-container": "#008343",
+              "outline-variant": "#424656",
+              "secondary-fixed-dim": "#dfb7ff",
+              "on-primary-container": "#f8f7ff",
+              "on-tertiary": "#003919",
+              "tertiary-fixed-dim": "#00e479",
+              "on-primary-fixed-variant": "#003fa4",
+              "on-error": "#690005",
+              "secondary": "#dfb7ff",
+              "surface-container-highest": "#35343a",
+              "on-surface": "#e4e1e9",
+              "inverse-surface": "#e4e1e9",
+              "on-background": "#e4e1e9",
+              "background": "#131318",
+              "secondary-container": "#691ea6",
+              "on-surface-variant": "#c2c6d8",
+              "primary": "#b3c5ff",
+              "primary-fixed-dim": "#b3c5ff",
+              "on-tertiary-fixed": "#00210c",
+              "primary-fixed": "#dae1ff"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(31, 31, 37, 0.6);
+            backdrop-filter: blur(20px);
+        }
+        .stadium-glow {
+            box-shadow: 0 0 40px rgba(0, 102, 255, 0.1);
+        }
+        .win-glow {
+            box-shadow: 0 0 30px rgba(0, 228, 121, 0.2);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body min-h-screen pb-24">
+<header class="fixed top-0 w-full z-50 bg-slate-950/60 backdrop-blur-xl shadow-[0_0_20px_rgba(0,102,255,0.15)]">
+<div class="flex justify-between items-center px-6 py-4 w-full max-w-none">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant">arrow_back</span>
+<h1 class="font-['Space_Grotesk'] tracking-tight font-bold text-blue-600 dark:text-blue-500">PICK DETAILS</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-slate-400" data-icon="notifications">notifications</span>
+<div class="w-8 h-8 rounded-full bg-surface-container-high border border-outline-variant/20 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="professional male sports analyst headshot with neutral background and soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOO25qknGbOB4GcRNysGabYavFnJhquMmOMSkNlAWQeDNBuB_rYAyDzSviMpZmjma_hV0h8bEHfRJVFnmywfmhZNIBLs1KV3qbLO6qeWiyybI1sHrGMLJ8GaShYhhQLrYGY7MGkaI-loGEpzca8vx_XGPLD5VACafRylLFNxjr3SuOaLENUymYycxRJJYRO49U5UQuysdQT0F-Bpdp0_e_rR6eZRoIsU18gAf87iyQzWqhpzCNfaFpbZcKABECieHCvFJU5ij5Log3"/>
+</div>
+</div>
+</div>
+<div class="bg-gradient-to-r from-blue-500/10 to-purple-500/10 h-[1px]"></div>
+</header>
+<main class="pt-24 px-4 space-y-6 max-w-md mx-auto">
+<section class="relative overflow-hidden rounded-xl bg-surface-container-low stadium-glow p-6">
+<div class="absolute top-0 right-0 p-4">
+<div class="bg-tertiary/10 text-tertiary px-3 py-1 rounded-full border border-tertiary/20 flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-bold">WINNER</span>
+</div>
+</div>
+<div class="flex flex-col items-center gap-6 mt-4">
+<div class="flex items-center justify-between w-full px-2">
+<div class="flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center p-2 border border-white/5">
+<img class="w-full h-full object-contain" data-alt="Los Angeles Lakers team logo in vivid purple and gold with professional basketball aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsC-bo_k27QZW9KsOZU4ybrixzzp-DqiWaqLG3nc2NQWYNI5Age5EbpmHnrLLv4Z23A9VdSzuFHam1fWXxKGFzlt7N61D2shr6TRB59jAYkkJmeuUvIIOa2vKlpfioQys1XFhTDTLmvhQvogHzUHig3AZPGCZ9WgW7y1tAdwwYc-FpJEki8rcK7Ep0oQrSPFHqPG68CgpcdzgEtQ6ig9mxnZcTMLNernzkcwTU97TLKGvN6V7Nu2_fICkGsUSQtw_p1tKq_liE7NBN"/>
+</div>
+<span class="font-headline font-bold text-sm tracking-tight">LAKERS</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="font-headline text-4xl font-black tracking-tighter text-on-primary-container">
+                            110 <span class="text-on-surface-variant/40 mx-1">-</span> 108
+                        </div>
+<span class="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant font-bold mt-1">FINAL</span>
+</div>
+<div class="flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center p-2 border border-white/5">
+<img class="w-full h-full object-contain" data-alt="Boston Celtics team logo in classic green and white with professional basketball aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8h5M-BzpMK4YgUjzsIfMJyPXGiPt3jYxiFQ_mRTmvumIMnnktEK45eQUNCsXPgePKleuzultiyw8Hh6l__wOu71XOWhIGtw7yY7JfX1IVKC_bVuerGSbP6as7S4QmQAD9wPnIwYbOdS3PvHx0y3owK-Kn1oerZHLSJ-aEsP5Y6HD4e5M4OO0m2iPeGij1wx0g_ai2ppClhoFTr-nfRSRvFGZfg9bhckgBIO3Tc9NgNQfHi0Pq3YpjQz6c74qYoft6e_q09ZABnGnB"/>
+</div>
+<span class="font-headline font-bold text-sm tracking-tight">CELTICS</span>
+</div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="bg-primary-container text-on-primary-container px-6 py-2 rounded-xl shadow-[0_0_20px_rgba(0,102,255,0.3)] border-t border-white/20">
+<span class="font-headline font-bold text-lg tracking-tight uppercase">Spread -3.5</span>
+</div>
+<span class="text-[11px] text-on-surface-variant font-medium tracking-wide">MATCH WINNER &amp; SPREAD</span>
+</div>
+</div>
+</section>
+<section class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-high rounded-xl p-5 border border-white/5">
+<div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Current Odds</div>
+<div class="font-headline text-2xl font-bold text-on-surface">+110</div>
+<div class="mt-2 text-[10px] text-tertiary font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">trending_up</span>
+                    BEST VALUE
+                </div>
+</div>
+<div class="bg-surface-container-high rounded-xl p-5 border border-white/5">
+<div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Potential Payout</div>
+<div class="font-headline text-2xl font-bold text-on-surface">$210</div>
+<div class="mt-2 text-[10px] text-on-surface-variant/60 font-medium">On $100 Stake</div>
+</div>
+</section>
+<section class="bg-surface-container-high rounded-xl p-5 border border-white/5 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">Expert Confidence</h3>
+<div class="flex gap-1 text-primary">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 0;">star</span>
+</div>
+</div>
+<div class="text-right">
+<div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Verified Win</div>
+<span class="material-symbols-outlined text-tertiary text-4xl win-glow rounded-full">verified</span>
+</div>
+</div>
+<div class="space-y-3 pt-4 border-t border-white/5">
+<h3 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Analyst Notes</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed italic">
+                    "Lakers are strong at home. Historically, they've covered the spread in 80% of their last 10 games against Eastern Conference opponents at the Crypto.com Arena."
+                </p>
+</div>
+</section>
+<section class="flex flex-col items-center justify-center py-8">
+<div class="relative flex items-center justify-center">
+<div class="absolute w-24 h-24 bg-tertiary/20 rounded-full blur-2xl animate-pulse"></div>
+<span class="material-symbols-outlined text-tertiary text-8xl" style="font-variation-settings: 'wght' 700;">check_circle</span>
+</div>
+<h2 class="font-headline font-black text-2xl mt-4 tracking-tight text-on-surface">PICK SUCCESSFUL</h2>
+<p class="text-on-surface-variant text-xs mt-1 font-medium tracking-wide uppercase">Earnings credited to wallet</p>
+</section>
+<button class="w-full bg-gradient-to-r from-primary to-primary-container text-on-primary font-headline font-bold py-4 rounded-xl shadow-lg shadow-primary-container/20 active:scale-[0.98] transition-transform">
+            VIEW FULL SEASON STATS
+        </button>
+</main>
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-slate-950/60 backdrop-blur-2xl border-t border-white/5 shadow-[0_-4px_24px_rgba(0,102,255,0.1)]">
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Dashboard</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="sports_basketball">sports_basketball</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Sports</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="sensors">sensors</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Live</span>
+</div>
+<div class="flex flex-col items-center justify-center text-blue-500 bg-blue-500/10 rounded-xl px-3 py-1 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="leaderboard">leaderboard</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Stats</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Profile</span>
+</div>
+</nav>
+</body></html>

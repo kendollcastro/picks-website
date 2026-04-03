@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-secondary-fixed-variant": "#661aa3",
+            "surface-tint": "#b3c5ff",
+            "on-tertiary-container": "#e2ffe4",
+            "secondary-fixed": "#f1dbff",
+            "error": "#ffb4ab",
+            "inverse-primary": "#0054d6",
+            "outline": "#8c90a1",
+            "surface-variant": "#35343a",
+            "inverse-on-surface": "#303036",
+            "surface": "#131318",
+            "surface-container": "#1f1f25",
+            "surface-container-low": "#1b1b20",
+            "surface-bright": "#39383e",
+            "surface-container-high": "#2a292f",
+            "on-primary": "#002b75",
+            "on-secondary-fixed": "#2d0050",
+            "surface-container-lowest": "#0e0e13",
+            "on-secondary": "#4a007f",
+            "on-tertiary-fixed-variant": "#005228",
+            "on-secondary-container": "#d5a4ff",
+            "tertiary": "#00e479",
+            "surface-dim": "#131318",
+            "on-error-container": "#ffdad6",
+            "tertiary-fixed": "#60ff99",
+            "primary-container": "#0066ff",
+            "error-container": "#93000a",
+            "on-primary-fixed": "#001849",
+            "tertiary-container": "#008343",
+            "outline-variant": "#424656",
+            "secondary-fixed-dim": "#dfb7ff",
+            "on-primary-container": "#f8f7ff",
+            "on-tertiary": "#003919",
+            "tertiary-fixed-dim": "#00e479",
+            "on-primary-fixed-variant": "#003fa4",
+            "on-error": "#690005",
+            "secondary": "#dfb7ff",
+            "surface-container-highest": "#35343a",
+            "on-surface": "#e4e1e9",
+            "inverse-surface": "#e4e1e9",
+            "on-background": "#e4e1e9",
+            "background": "#131318",
+            "secondary-container": "#691ea6",
+            "on-surface-variant": "#c2c6d8",
+            "primary": "#b3c5ff",
+            "primary-fixed-dim": "#b3c5ff",
+            "on-tertiary-fixed": "#00210c",
+            "primary-fixed": "#dae1ff"
+          },
+          fontFamily: {
+            "headline": ["Space Grotesk"],
+            "body": ["Inter"],
+            "label": ["Inter"]
+          },
+          borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+        },
+      },
+    }
+  </script>
+<style>
+    .glass-effect {
+      backdrop-filter: blur(20px);
+    }
+    .text-glow-primary {
+      text-shadow: 0 0 15px rgba(0, 102, 255, 0.4);
+    }
+    .inner-glow {
+      box-shadow: inset 0 2px 4px 0 rgba(255, 255, 255, 0.1);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .custom-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary/30">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-950/60 backdrop-blur-xl shadow-[0_0_20px_rgba(0,102,255,0.15)] flex justify-between items-center px-6 py-4 w-full max-w-none">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden border border-white/10">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="close-up portrait of a professional male analyst with clean aesthetic and soft cinematic studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-cpJVsgou0Va3s4ElTGfy0D8xTcmIeXwwkq-4krCNIqUZJgONVSz6zJQyuaSV9KvvNHtFPEDeSY36rQ0NDbVxU70WIujjoxRuQa0uBecAVWCIij9sQsky2UW6m_HNeZ9-4N9rIT52Rq7rSxcy7SSOnTduJu5WQfJlNL_XbXxQ8j_GEpAp2NMAUe33TNpQKMYs--BEHlStOiwMlVUj7wMxTY_s7r1n2vMTVmG7zerS482gujvww8rSXjlrkFUH-9JhUFI67DnDebOf"/>
+</div>
+<h1 class="font-['Space_Grotesk'] tracking-tight font-bold text-2xl italic tracking-tighter text-blue-600 dark:text-blue-500">KCM PICKS</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">search</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 transition-colors relative">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-tertiary rounded-full"></span>
+</button>
+</div>
+<!-- Separation Logic -->
+<div class="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 h-[1px]"></div>
+</header>
+<!-- Main Content Area -->
+<main class="pt-24 pb-32 px-6 max-w-lg mx-auto">
+<!-- Today's Picks Category Scroll -->
+<section class="mb-8">
+<div class="flex justify-between items-end mb-4">
+<h2 class="font-headline text-xl font-bold tracking-tight">Today's Picks</h2>
+<span class="text-xs font-label uppercase tracking-widest text-on-surface-variant">View All</span>
+</div>
+<div class="flex gap-4 overflow-x-auto custom-scrollbar pb-2">
+<div class="flex flex-col items-center gap-2 group min-w-[72px]">
+<div class="w-16 h-16 rounded-2xl bg-primary-container flex items-center justify-center shadow-[0_0_15px_rgba(0,102,255,0.3)] transition-transform active:scale-95">
+<span class="material-symbols-outlined text-on-primary-container text-3xl">sports_basketball</span>
+</div>
+<span class="text-[10px] font-label font-bold uppercase tracking-wider text-primary">NBA</span>
+</div>
+<div class="flex flex-col items-center gap-2 group min-w-[72px]">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-high flex items-center justify-center hover:bg-surface-variant transition-colors active:scale-95">
+<span class="material-symbols-outlined text-on-surface-variant text-3xl">sports_football</span>
+</div>
+<span class="text-[10px] font-label font-bold uppercase tracking-wider text-on-surface-variant">NFL</span>
+</div>
+<div class="flex flex-col items-center gap-2 group min-w-[72px]">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-high flex items-center justify-center hover:bg-surface-variant transition-colors active:scale-95">
+<span class="material-symbols-outlined text-on-surface-variant text-3xl">sports_baseball</span>
+</div>
+<span class="text-[10px] font-label font-bold uppercase tracking-wider text-on-surface-variant">MLB</span>
+</div>
+<div class="flex flex-col items-center gap-2 group min-w-[72px]">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-high flex items-center justify-center hover:bg-surface-variant transition-colors active:scale-95">
+<span class="material-symbols-outlined text-on-surface-variant text-3xl">sports_soccer</span>
+</div>
+<span class="text-[10px] font-label font-bold uppercase tracking-wider text-on-surface-variant">SOCCER</span>
+</div>
+<div class="flex flex-col items-center gap-2 group min-w-[72px]">
+<div class="w-16 h-16 rounded-2xl bg-surface-container-high flex items-center justify-center hover:bg-surface-variant transition-colors active:scale-95">
+<span class="material-symbols-outlined text-on-surface-variant text-3xl">sports_mma</span>
+</div>
+<span class="text-[10px] font-label font-bold uppercase tracking-wider text-on-surface-variant">UFC</span>
+</div>
+</div>
+</section>
+<!-- Active Bets Tracker -->
+<section class="mb-10">
+<h2 class="font-headline text-xl font-bold tracking-tight mb-4">Active Tracker</h2>
+<div class="space-y-4">
+<!-- Live Game Card 1 -->
+<div class="bg-surface-container-high rounded-xl p-5 relative overflow-hidden group">
+<div class="absolute top-0 right-0 bg-tertiary/10 text-tertiary px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-bl-xl flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-tertiary rounded-full animate-pulse"></span> Live
+          </div>
+<div class="flex justify-between items-center mb-4">
+<div class="flex flex-col items-center gap-2">
+<div class="w-12 h-12 rounded-full bg-surface-container-lowest p-2 flex items-center justify-center">
+<img alt="Lakers Logo" class="w-full h-full object-contain" data-alt="stylized vibrant geometric sports team logo of a purple and gold lion head on dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAGsEpx7v5XudOlWq9O-evwGNkI8guPgQs0K9WjNKEE97kUwu99dh4m7cvPdkISLHtFbdGO8PKGPVVRHqBZISsQ0rk0nZcq2um_CF9cxToUOHWz8_wPRVsmbrZ5drqevgoArhRFGI6FHc3D7-XmI0EpUhp5XlF6s3d-t385i4pXr4CrwgkKwafCzKCdakIYpfNjs8DAapvHdk3XcnPabKrAfBBnUzSDlMnfRCqjsbDu0N3DsB6T-exJs5m-Avj4qxabniXPLkSScFc"/>
+</div>
+<span class="text-[10px] font-bold text-on-surface-variant uppercase">LAKERS</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="font-headline text-3xl font-black text-on-primary-container">102</span>
+<span class="text-on-surface-variant font-bold">:</span>
+<span class="font-headline text-3xl font-black text-on-surface-variant">98</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-12 h-12 rounded-full bg-surface-container-lowest p-2 flex items-center justify-center">
+<img alt="Warriors Logo" class="w-full h-full object-contain" data-alt="stylized vibrant geometric sports team logo of a blue and gold warrior helmet on dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5WWoaRfJUfm5OeqrEp75OqCpljfpc7cWo2BWIcm6qva1tLHR09a6XWa31PYVU-pYVDPyYO2gJdigTDCLAhmvnak53AvIOJU8J8ryXHtmP28IhgXOzGLB3D_QMRBNuAPxTXzbp4GkSgydOt7muYwe-eeqBEFH0X1RG3eAxnUI0sL2Ra3bK7QS_cFJl4xur3CZFjfD6xs9SPVcCz1ZoUcKpjuxUARFcvqwZk_z_koJSwJTO4ngJcx-YwyjFLvxPBrmp2TrTf4DVkCPq"/>
+</div>
+<span class="text-[10px] font-bold text-on-surface-variant uppercase">WARRIORS</span>
+</div>
+</div>
+<div class="h-1 bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[65%] shadow-[0_0_8px_rgba(179,197,255,0.5)]"></div>
+</div>
+<div class="flex justify-between mt-2">
+<span class="text-[10px] text-on-surface-variant">Q4 - 04:12</span>
+<span class="text-[10px] text-primary font-bold">Pick: Over 214.5</span>
+</div>
+</div>
+<!-- Live Game Card 2 -->
+<div class="bg-surface-container-high rounded-xl p-5 relative overflow-hidden group">
+<div class="absolute top-0 right-0 bg-on-surface-variant/10 text-on-surface-variant px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-bl-xl">
+            Pending
+          </div>
+<div class="flex justify-between items-center mb-4 opacity-80">
+<div class="flex flex-col items-center gap-2">
+<div class="w-12 h-12 rounded-full bg-surface-container-lowest p-2 flex items-center justify-center">
+<img alt="Team A" class="w-full h-full object-contain" data-alt="clean minimalist circular sports logo with abstract red hawk wings against a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkGyxtqCkitbcawOclvwIDhyuI7_S_VftaWHvQGv7uC0UES6Rvz6Z_RRd0STdMIeiL-jX2zneoHig-xZ0exsHzvT_sLg8L89uR3uTc_RO2FoqKVOEmqRwPS2KttmZaLQUo5wzHmEZ_Zi7Dgxzuoox2LUKTrvbCMfFwTMBXx3QnBv4KcwCYCIETBE3SLC0ceOQ3qM7cXwZlqOgg5D4K03vB6bBl9C2pQzTSOSzvnrZiFJGkgdZcJKUdNJvnfNwCQjWI75GgTS9RUA1R"/>
+</div>
+<span class="text-[10px] font-bold text-on-surface-variant uppercase">CHIEFS</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="font-headline text-3xl font-black text-on-surface-variant">0</span>
+<span class="text-on-surface-variant font-bold">-</span>
+<span class="font-headline text-3xl font-black text-on-surface-variant">0</span>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-12 h-12 rounded-full bg-surface-container-lowest p-2 flex items-center justify-center">
+<img alt="Team B" class="w-full h-full object-contain" data-alt="clean minimalist circular sports logo with abstract blue shield emblem against a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2-PV_IWJNawdriWN4tLJqj_PcyKJlYvqpgmH-Xs52qKJhcppWvZsAeqQQ835JoA-iz9Im7QJSIBaBelp0V96py_ljl29N27yLFV9ibwCDA7dilMzXYvCTtOTaexnqhku8lBkF0pNXrb-LYYETAq5uwg27ZHjWSD01Q7rZOyuUVm-i4Aufix3X2TADo_UX7iFrT9O-k2meMVmFZcS6WdpiML_22nijnIBcz29GdV5GNr0GPtjgWrdMlK1ZYDcFkrCh77UqogBGv87R"/>
+</div>
+<span class="text-[10px] font-bold text-on-surface-variant uppercase">EAGLES</span>
+</div>
+</div>
+<div class="flex justify-between border-t border-white/5 pt-3">
+<span class="text-[10px] text-on-surface-variant">Starts in 2h 45m</span>
+<span class="text-[10px] text-primary font-bold">Pick: Eagles ML</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Stats Section -->
+<section class="grid grid-cols-2 gap-4 mb-10">
+<div class="col-span-2">
+<h2 class="font-headline text-xl font-bold tracking-tight mb-4">Performance Analytics</h2>
+</div>
+<!-- Circular Chart Widget -->
+<div class="bg-surface-container-high rounded-xl p-5 flex flex-col items-center justify-center aspect-square relative group">
+<div class="relative w-28 h-28 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90">
+<circle class="text-surface-container-lowest" cx="56" cy="56" fill="transparent" r="48" stroke="currentColor" stroke-width="8"></circle>
+<circle class="text-tertiary drop-shadow-[0_0_8px_rgba(0,228,121,0.4)]" cx="56" cy="56" fill="transparent" r="48" stroke="currentColor" stroke-dasharray="301.6" stroke-dashoffset="84" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="font-headline text-2xl font-black">72%</span>
+<span class="text-[9px] uppercase tracking-tighter text-on-surface-variant font-bold">Win Rate</span>
+</div>
+</div>
+<div class="mt-4 flex gap-3">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-tertiary rounded-full"></span>
+<span class="text-[10px] font-bold">48 W</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-error rounded-full"></span>
+<span class="text-[10px] font-bold">12 L</span>
+</div>
+</div>
+</div>
+<!-- Line Graph Widget (Simplified) -->
+<div class="bg-surface-container-high rounded-xl p-5 flex flex-col justify-between aspect-square group">
+<div>
+<span class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">30D Profit</span>
+<div class="text-2xl font-headline font-black text-tertiary mt-1">+$4.2k</div>
+</div>
+<div class="relative h-16 flex items-end gap-1">
+<div class="flex-1 bg-tertiary/20 h-[40%] rounded-t-sm transition-all hover:bg-tertiary/40"></div>
+<div class="flex-1 bg-tertiary/20 h-[60%] rounded-t-sm transition-all hover:bg-tertiary/40"></div>
+<div class="flex-1 bg-tertiary/20 h-[30%] rounded-t-sm transition-all hover:bg-tertiary/40"></div>
+<div class="flex-1 bg-tertiary/20 h-[70%] rounded-t-sm transition-all hover:bg-tertiary/40"></div>
+<div class="flex-1 bg-tertiary/40 h-[90%] rounded-t-sm transition-all hover:bg-tertiary/60"></div>
+<div class="flex-1 bg-tertiary/30 h-[50%] rounded-t-sm transition-all hover:bg-tertiary/50"></div>
+<div class="flex-1 bg-tertiary/60 h-[100%] rounded-t-sm transition-all hover:bg-tertiary/80"></div>
+</div>
+</div>
+</section>
+<!-- Leaderboard Widget -->
+<section class="mb-10">
+<h2 class="font-headline text-xl font-bold tracking-tight mb-4">Elite Pro Ranking</h2>
+<div class="bg-surface-container-low rounded-2xl p-2">
+<div class="space-y-1">
+<!-- Rank 1 -->
+<div class="flex items-center justify-between p-3 rounded-xl bg-surface-container-high border-l-4 border-tertiary shadow-lg">
+<div class="flex items-center gap-4">
+<span class="font-headline text-lg font-black text-tertiary w-4">1</span>
+<img alt="User 1" class="w-10 h-10 rounded-full object-cover" data-alt="vibrant neon-lit portrait of a trendy young man with colorful lighting accents and energetic expression" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzwtZ-yCPD7slAbx6a5CAXTZke96TlcVweDZ43_0Wg8P2wWkAJH0M76VQMik0ok3XeZdNqQLvNXK0202EvPTVscUB7GrIj5pZ3czngLwC80z707L97dBwQXtBRyP-1GK2LXIQYB3yCD_a3hHCmT4QFTQyJYVsqUJ__9H_T7NkW3N9N7bxjxdLsEWQu_rRLUFXIAIcN6i-EcK4xXx7tSsw35FlHWR2Y9wxIeuH3VRTEXJZMul-P8LpkwqOJ0fkO0hJy_yJBsCOoRJOd"/>
+<div class="flex flex-col">
+<span class="text-sm font-bold">KCMPICKS PRO</span>
+<span class="text-[10px] text-on-surface-variant font-medium">92% ROI • 12 Streak</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+</div>
+<!-- Rank 2 -->
+<div class="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors">
+<div class="flex items-center gap-4">
+<span class="font-headline text-lg font-black text-on-surface-variant w-4">2</span>
+<img alt="User 2" class="w-10 h-10 rounded-full object-cover" data-alt="sharp portrait of a modern young man in a clean studio setting with cool tone lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMEG_aM2fMTusf8iowysCCltBcu96xjuIjmF_-JRJH4CC3KAce3DTGeDkOqHb4AFkBk0G9GfZ5mK8iDdM5mm-fJZKz3BBq--YjKQ9-yKrON7dgRm1k8_DNJebc5YmkLKF-Apgw0gf_RxUrbaCg0LCDzHoEWYvq5bJA1Y1qLtUPX5mfKC55999NJyi6HERk7xw5O7TAsK7lqAiGK7DzgWCmFB2z94MYpDQd9MBPCmxCNmqmhwGp-xUNJT6Ou7rA03Gxuggz-uyA8PhU"/>
+<div class="flex flex-col">
+<span class="text-sm font-bold">SharkBettor</span>
+<span class="text-[10px] text-on-surface-variant font-medium">84% ROI • 5 Streak</span>
+</div>
+</div>
+</div>
+<!-- Rank 3 -->
+<div class="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors">
+<div class="flex items-center gap-4">
+<span class="font-headline text-lg font-black text-on-surface-variant w-4">3</span>
+<img alt="User 3" class="w-10 h-10 rounded-full object-cover" data-alt="close-up portrait of a woman with a confident smile, warm studio lighting, professional headshot style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDt1fbn7goOXgiS7arnuD3WsD_i8uH3Yk2wDN4TosMH6KWeQPteYz840JZUhl44GjnQ3VEcYx5XJ4Hr_-CDRr5HubSVhnmAYzmY6L8LoF0JJG1c-RmEvW7hbFtxNsfdpRfYwGgIHporMxf3VTxjxX_N1rAJYL0VCklcUQkSED-rDEtiK69qSkRiglW5KOrQJ23hWud8M-wNl84kyILJ_EHKzXnzZ74xgDvxff55MExjVOTgF00ADAkFvuSoJc-JghEJDCw-pRXHZWFL"/>
+<div class="flex flex-col">
+<span class="text-sm font-bold">QueenParlay</span>
+<span class="text-[10px] text-on-surface-variant font-medium">79% ROI • 3 Streak</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed bottom-28 right-6 w-14 h-14 bg-gradient-to-br from-primary to-primary-container text-on-primary-container rounded-full flex items-center justify-center shadow-[0_0_24px_rgba(0,102,255,0.4)] inner-glow active:scale-90 transition-transform z-40">
+<span class="material-symbols-outlined text-3xl font-bold">add</span>
+</button>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-slate-950/60 backdrop-blur-2xl border-t border-white/5 shadow-[0_-4px_24px_rgba(0,102,255,0.1)] rounded-t-2xl">
+<div class="flex flex-col items-center justify-center text-blue-500 bg-blue-500/10 rounded-xl px-3 py-1 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Dashboard</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined">sports_basketball</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Sports</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined">sensors</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Live</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined">leaderboard</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Stats</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 hover:text-blue-400 transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined">person</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-widest font-semibold mt-1">Profile</span>
+</div>
+</nav>
+</body></html>
