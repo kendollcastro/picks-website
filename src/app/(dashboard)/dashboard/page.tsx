@@ -12,7 +12,6 @@ import {
   TrendingUp,
   TrendingDown,
   Flame,
-  Trophy,
   ChevronRight,
   RefreshCw,
   Loader2,
@@ -21,7 +20,6 @@ import {
   Target,
   DollarSign,
   Sparkles,
-  Zap,
   Clock,
 } from 'lucide-react';
 
@@ -34,12 +32,6 @@ const sports = [
   { id: 'college-football', name: 'CFB' },
   { id: 'college-basketball', name: 'CBB' },
   { id: 'womens-basketball', name: 'WNBA' },
-];
-
-const leaderboard = [
-  { rank: 1, name: 'KCMPICKS PRO', handle: '@kcmpro', stats: '92% ROI', streak: '12W', isTop: true, avatar: 'KC' },
-  { rank: 2, name: 'SharkBettor', handle: '@sharkbets', stats: '84% ROI', streak: '5W', isTop: false, avatar: 'SB' },
-  { rank: 3, name: 'QueenParlay', handle: '@queenparlay', stats: '79% ROI', streak: '3W', isTop: false, avatar: 'QP' },
 ];
 
 export default function DashboardPage() {
@@ -345,80 +337,6 @@ export default function DashboardPage() {
           </p>
         </motion.div>
       )}
-
-      {/* Leaderboard */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="font-['Space_Grotesk'] text-xl font-bold">Elite Ranking</h2>
-          <Link 
-            href="/leaderboard" 
-            className="text-sm text-primary hover:text-primary/80 transition-colors flex items-center gap-1 font-medium"
-          >
-            View All 
-            <ChevronRight size={16} />
-          </Link>
-        </div>
-        <div className="glass-card rounded-2xl p-2">
-          <div className="space-y-1">
-            {leaderboard.map((user, i) => (
-              <motion.div
-                key={user.rank}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.55 + i * 0.05 }}
-                className={cn(
-                  'flex items-center justify-between p-4 rounded-xl transition-all duration-200 group',
-                  user.isTop
-                    ? 'bg-gradient-to-r from-tertiary/10 to-transparent border border-tertiary/20'
-                    : 'hover:bg-white/[0.02]'
-                )}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={cn(
-                    'w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm',
-                    user.isTop 
-                      ? 'bg-gradient-to-br from-tertiary to-tertiary/50 text-on-tertiary' 
-                      : 'bg-surface-container-high text-on-surface-variant'
-                  )}>
-                    {user.rank}
-                  </div>
-                  <div className="relative">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-on-primary-container font-bold text-sm">
-                      {user.avatar}
-                    </div>
-                    {user.isTop && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-tertiary rounded-full flex items-center justify-center">
-                        <Zap size={10} className="text-on-tertiary" />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">{user.name}</p>
-                    <p className="text-xs text-on-surface-variant">{user.handle}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-6">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-sm font-bold text-tertiary">{user.stats}</p>
-                    <p className="text-xs text-on-surface-variant">ROI</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-kcm-orange">{user.streak}</p>
-                    <p className="text-xs text-on-surface-variant">Streak</p>
-                  </div>
-                  {user.isTop && (
-                    <Trophy size={20} className="text-tertiary" fill="currentColor" />
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </motion.section>
     </div>
   );
 }
