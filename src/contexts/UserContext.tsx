@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 
 interface Profile {
   id: string;
@@ -51,7 +51,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: unknown, session: Session | null) => {
       setUser(session?.user || null);
       if (!session?.user) {
         setProfile(null);
