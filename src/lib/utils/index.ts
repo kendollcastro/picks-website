@@ -77,14 +77,23 @@ export function formatDateTime(date: string | Date): string {
   return `${formatDate(date)} ${formatTime(date)}`;
 }
 
-export function formatGameDate(date: string | Date): string {
-  let d: Date;
+export function parseGameDate(dateStr: string): Date {
+  if (!dateStr) return new Date(NaN);
   
-  if (typeof date === 'string') {
-    d = new Date(date + (date.includes('Z') ? '' : 'Z'));
+  let d = new Date(dateStr);
+  if (!isNaN(d.getTime())) return d;
+  
+  if (dateStr.includes('Z') || dateStr.includes('+')) {
+    d = new Date(dateStr);
   } else {
-    d = date;
+    d = new Date(dateStr + 'Z');
   }
+  
+  return d;
+}
+
+export function formatGameDate(date: string | Date): string {
+  const d = typeof date === 'string' ? parseGameDate(date) : date;
   
   if (isNaN(d.getTime())) return 'TBD';
   
@@ -97,13 +106,7 @@ export function formatGameDate(date: string | Date): string {
 }
 
 export function formatGameTime(date: string | Date): string {
-  let d: Date;
-  
-  if (typeof date === 'string') {
-    d = new Date(date + (date.includes('Z') ? '' : 'Z'));
-  } else {
-    d = date;
-  }
+  const d = typeof date === 'string' ? parseGameDate(date) : date;
   
   if (isNaN(d.getTime())) return 'TBD';
   
@@ -116,13 +119,7 @@ export function formatGameTime(date: string | Date): string {
 }
 
 export function isGameToday(date: string | Date): boolean {
-  let d: Date;
-  
-  if (typeof date === 'string') {
-    d = new Date(date + (date.includes('Z') ? '' : 'Z'));
-  } else {
-    d = date;
-  }
+  const d = typeof date === 'string' ? parseGameDate(date) : date;
   
   if (isNaN(d.getTime())) return false;
   
@@ -140,13 +137,7 @@ export function isGameToday(date: string | Date): boolean {
 }
 
 export function isGameInFuture(date: string | Date): boolean {
-  let d: Date;
-  
-  if (typeof date === 'string') {
-    d = new Date(date + (date.includes('Z') ? '' : 'Z'));
-  } else {
-    d = date;
-  }
+  const d = typeof date === 'string' ? parseGameDate(date) : date;
   
   if (isNaN(d.getTime())) return false;
   
