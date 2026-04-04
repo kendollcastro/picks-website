@@ -78,7 +78,16 @@ export function formatDateTime(date: string | Date): string {
 }
 
 export function formatGameDate(date: string | Date): string {
-  const d = new Date(date);
+  let d: Date;
+  
+  if (typeof date === 'string') {
+    d = new Date(date + (date.includes('Z') ? '' : 'Z'));
+  } else {
+    d = date;
+  }
+  
+  if (isNaN(d.getTime())) return 'TBD';
+  
   return new Intl.DateTimeFormat('en-US', {
     weekday: 'short',
     month: 'short',
@@ -88,23 +97,50 @@ export function formatGameDate(date: string | Date): string {
 }
 
 export function formatGameTime(date: string | Date): string {
+  let d: Date;
+  
+  if (typeof date === 'string') {
+    d = new Date(date + (date.includes('Z') ? '' : 'Z'));
+  } else {
+    d = date;
+  }
+  
+  if (isNaN(d.getTime())) return 'TBD';
+  
   return new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
     timeZone: 'America/New_York',
-  }).format(new Date(date));
+  }).format(d);
 }
 
 export function isGameToday(date: string | Date): boolean {
-  const gameDate = new Date(date);
+  let d: Date;
+  
+  if (typeof date === 'string') {
+    d = new Date(date + (date.includes('Z') ? '' : 'Z'));
+  } else {
+    d = date;
+  }
+  
+  if (isNaN(d.getTime())) return false;
+  
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
   
-  const gameDateStr = gameDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
-  const todayStr = today.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
-  const tomorrowStr = tomorrow.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+  const gameDateStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+  }).format(d);
+  
+  const todayStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+  }).format(today);
+  
+  const tomorrowStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+  }).format(tomorrow);
   
   return gameDateStr === todayStr || gameDateStr === tomorrowStr;
 }
