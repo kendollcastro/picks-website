@@ -505,8 +505,8 @@ export function useOdds(sport: string = 'nba') {
     try {
       setLoading(true);
       const data = await fetchOdds(sport);
-      // Filter to only show today's games
-      const todaysOdds = data.filter((odd) => isGameInFuture(odd.gameTime));
+      // Filter to only show today's games (not future games)
+      const todaysOdds = data.filter((odd) => !isGameInFuture(odd.gameTime));
       setOdds(todaysOdds);
     } finally {
       setLoading(false);
@@ -520,7 +520,7 @@ export function useOdds(sport: string = 'nba') {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchOdds(sport).then((data) => {
-        const todaysOdds = data.filter((odd) => isGameInFuture(odd.gameTime));
+        const todaysOdds = data.filter((odd) => !isGameInFuture(odd.gameTime));
         setOdds(todaysOdds);
       }).catch(console.error);
     }, 60000);
@@ -538,7 +538,7 @@ export function usePredictions(sport: string = 'nba') {
     try {
       setLoading(true);
       const oddsData = await fetchOdds(sport);
-      const todaysOdds = oddsData.filter((odd) => isGameInFuture(odd.gameTime));
+      const todaysOdds = oddsData.filter((odd) => !isGameInFuture(odd.gameTime));
       const preds = todaysOdds.map(generatePrediction);
       setPredictions(preds);
     } finally {
@@ -553,7 +553,7 @@ export function usePredictions(sport: string = 'nba') {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchOdds(sport).then((oddsData) => {
-        const todaysOdds = oddsData.filter((odd) => isGameInFuture(odd.gameTime));
+        const todaysOdds = oddsData.filter((odd) => !isGameInFuture(odd.gameTime));
         setPredictions(todaysOdds.map(generatePrediction));
       }).catch(console.error);
     }, 90000);
