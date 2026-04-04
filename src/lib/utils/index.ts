@@ -126,23 +126,32 @@ export function isGameToday(date: string | Date): boolean {
   
   if (isNaN(d.getTime())) return false;
   
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const now = new Date();
   
   const gameDateStr = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
   }).format(d);
   
-  const todayStr = new Intl.DateTimeFormat('en-US', {
+  const nowStr = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
-  }).format(today);
+  }).format(now);
   
-  const tomorrowStr = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-  }).format(tomorrow);
+  return gameDateStr === nowStr;
+}
+
+export function isGameInFuture(date: string | Date): boolean {
+  let d: Date;
   
-  return gameDateStr === todayStr || gameDateStr === tomorrowStr;
+  if (typeof date === 'string') {
+    d = new Date(date + (date.includes('Z') ? '' : 'Z'));
+  } else {
+    d = date;
+  }
+  
+  if (isNaN(d.getTime())) return false;
+  
+  const now = new Date();
+  return d > now;
 }
 
 export function getTimeUntil(date: string | Date): string {

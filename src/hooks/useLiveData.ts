@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { isGameToday, isGameInFuture } from '@/lib/utils';
 
 // ============================================
 // TYPES
@@ -373,8 +374,8 @@ async function fetchESPNScores(sport: string): Promise<LiveGame[]> {
       };
     });
   } catch (error) {
-    console.error('ESPN fetch error, using mock data:', error);
-    return getMockGames(sport);
+    console.error('ESPN fetch error:', error);
+    return [];
   }
 }
 
@@ -467,7 +468,11 @@ export function useLiveData(sport: string = 'nba') {
     try {
       setLoading(true);
       const data = await fetchESPNScores(sport);
-      setGames(data);
+      // Filter to only show today's games (including live)
+      const todaysGames = data.filter((game) => 
+        isGameToday(game.gameTime) || game.isLive
+      );
+      setGames(todaysGames);
     } finally {
       setLoading(false);
     }
@@ -479,7 +484,12 @@ export function useLiveData(sport: string = 'nba') {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchESPNScores(sport).then(setGames).catch(console.error);
+      fetchESPNScores(sport).then((data) => {
+        const todaysGames = data.filter((game) => 
+          isGameToday(game.gameTime) || game.isLive
+        );
+        setGames(todaysGames);
+      }).catch(console.error);
     }, 30000);
     return () => clearInterval(interval);
   }, [sport]);
@@ -495,7 +505,9 @@ export function useOdds(sport: string = 'nba') {
     try {
       setLoading(true);
       const data = await fetchOdds(sport);
-      setOdds(data);
+      // Filter to only show today's games
+      const todaysOdds = data.filter((odd) => isGameInFuture(odd.gameTime));
+      setOdds(todaysOdds);
     } finally {
       setLoading(false);
     }
@@ -507,7 +519,10 @@ export function useOdds(sport: string = 'nba') {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchOdds(sport).then(setOdds).catch(console.error);
+      fetchOdds(sport).then((data) => {
+        const todaysOdds = data.filter((odd) => isGameInFuture(odd.gameTime));
+        setOdds(todaysOdds);
+      }).catch(console.error);
     }, 60000);
     return () => clearInterval(interval);
   }, [sport]);
@@ -523,7 +538,8 @@ export function usePredictions(sport: string = 'nba') {
     try {
       setLoading(true);
       const oddsData = await fetchOdds(sport);
-      const preds = oddsData.map(generatePrediction);
+      const todaysOdds = oddsData.filter((odd) => isGameInFuture(odd.gameTime));
+      const preds = todaysOdds.map(generatePrediction);
       setPredictions(preds);
     } finally {
       setLoading(false);
@@ -536,8 +552,9 @@ export function usePredictions(sport: string = 'nba') {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchOdds(sport).then(oddsData => {
-        setPredictions(oddsData.map(generatePrediction));
+      fetchOdds(sport).then((oddsData) => {
+        const todaysOdds = oddsData.filter((odd) => isGameInFuture(odd.gameTime));
+        setPredictions(todaysOdds.map(generatePrediction));
       }).catch(console.error);
     }, 90000);
     return () => clearInterval(interval);
