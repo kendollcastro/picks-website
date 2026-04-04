@@ -60,6 +60,7 @@ export function formatDate(date: string | Date): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'America/New_York',
   }).format(new Date(date));
 }
 
@@ -68,11 +69,44 @@ export function formatTime(date: string | Date): string {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
+    timeZone: 'America/New_York',
   }).format(new Date(date));
 }
 
 export function formatDateTime(date: string | Date): string {
   return `${formatDate(date)} ${formatTime(date)}`;
+}
+
+export function formatGameDate(date: string | Date): string {
+  const d = new Date(date);
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'America/New_York',
+  }).format(d);
+}
+
+export function formatGameTime(date: string | Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'America/New_York',
+  }).format(new Date(date));
+}
+
+export function isGameToday(date: string | Date): boolean {
+  const gameDate = new Date(date);
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  const gameDateStr = gameDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+  const todayStr = today.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+  const tomorrowStr = tomorrow.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+  
+  return gameDateStr === todayStr || gameDateStr === tomorrowStr;
 }
 
 export function getTimeUntil(date: string | Date): string {

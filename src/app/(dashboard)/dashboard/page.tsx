@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { cn, formatGameTime, formatGameDate } from '@/lib/utils';
 import { useLiveData, usePredictions, type LiveGame, type Prediction } from '@/hooks/useLiveData';
 import { useUser } from '@/contexts/UserContext';
 import { usePicks } from '@/hooks/usePicks';
@@ -400,9 +400,6 @@ function LiveGameCard({ game }: { game: LiveGame }) {
 }
 
 function ScheduledGameCard({ game }: { game: LiveGame }) {
-  const gameTime = new Date(game.gameTime);
-  const timeStr = gameTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-
   return (
     <div className="glass-card rounded-2xl p-5 hover:border-white/15 transition-all duration-300 group">
       <div className="flex items-center justify-between">
@@ -419,9 +416,9 @@ function ScheduledGameCard({ game }: { game: LiveGame }) {
 
         {/* Time */}
         <div className="flex flex-col items-center px-4">
-          <span className="text-xs text-on-surface-variant uppercase tracking-wider">vs</span>
+          <span className="text-xs text-on-surface-variant uppercase tracking-wider">{formatGameDate(game.gameTime)}</span>
           <span className="mt-1 px-3 py-1 rounded-lg bg-primary/10 text-primary text-sm font-bold">
-            {timeStr}
+            {formatGameTime(game.gameTime)}
           </span>
         </div>
 

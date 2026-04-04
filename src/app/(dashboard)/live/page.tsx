@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, formatGameTime, formatGameDate } from '@/lib/utils';
 import { useLiveData, type LiveGame } from '@/hooks/useLiveData';
 import {
   TrendingUp,
@@ -247,16 +247,12 @@ function LiveGameCard({ game }: { game: LiveGame }) {
 }
 
 function UpcomingGameCard({ game }: { game: LiveGame }) {
-  const gameTime = new Date(game.gameTime);
-  const timeStr = gameTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  const dateStr = gameTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-
   return (
     <div className="bg-surface-container-high rounded-xl p-4 border border-white/5 hover:border-primary/20 transition-colors">
       <div className="flex items-center gap-2 mb-3">
         <Clock size={12} className="text-on-surface-variant" />
         <span className="text-[10px] text-on-surface-variant">
-          {dateStr} • {timeStr}
+          {formatGameDate(game.gameTime)} • {formatGameTime(game.gameTime)}
         </span>
       </div>
 

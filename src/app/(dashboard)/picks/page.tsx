@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { cn } from '@/lib/utils';
+import { cn, formatGameTime, formatGameDate } from '@/lib/utils';
 import { useLiveData, formatOdds, type LiveGame } from '@/hooks/useLiveData';
 import { usePicks, type CreatePickInput } from '@/hooks/usePicks';
 import {
@@ -642,9 +642,8 @@ function AIPredictionCard({
   prediction: ReturnType<typeof calculatePrediction>;
   onTakePick: () => void;
 }) {
-  const gameTime = new Date(game.gameTime);
-  const timeStr = gameTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  const dateStr = gameTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const timeStr = formatGameTime(game.gameTime);
+  const dateStr = formatGameDate(game.gameTime);
 
   const bestPick = prediction.recommendations[0];
   const isHighValue = prediction.edge > 5;
