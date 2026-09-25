@@ -21,7 +21,7 @@ const features = [
       </svg>
     ),
     title: 'AI Predictions',
-    description: 'Machine learning models trained on 10+ years of data',
+    description: 'Jev (TypeSafe System One) evaluates each matchup with structured, calibrated win probabilities',
     gradient: 'from-primary/20 to-primary-container/20',
     iconColor: 'text-primary',
   },
@@ -60,13 +60,13 @@ const features = [
   },
 ];
 
-const recentWins = [
-  { match: 'LAL vs GSW', pick: 'LAL +3.5', odds: '+105', result: 'WIN' },
-  { match: 'KC vs BUF', pick: 'OVER 48.5', odds: '-110', result: 'WIN' },
-  { match: 'BOS vs MIA', pick: 'BOS -6', odds: '+120', result: 'WIN' },
-  { match: 'PHI vs NYG', pick: 'PHI ML', odds: '-150', result: 'WIN' },
-  { match: 'MCY vs LIV', pick: 'BTTS YES', odds: '+155', result: 'WIN' },
-  { match: 'DUKE vs UNC', pick: 'OVER 158', odds: '-105', result: 'WIN' },
+const liveSources = [
+  { match: 'NBA', pick: 'Basketball', odds: 'ESPN', result: 'LIVE' },
+  { match: 'NFL', pick: 'American Football', odds: 'ESPN', result: 'LIVE' },
+  { match: 'MLB', pick: 'Baseball', odds: 'ESPN', result: 'LIVE' },
+  { match: 'Soccer', pick: 'Global Leagues', odds: 'Massey', result: 'LIVE' },
+  { match: 'UFC', pick: 'MMA', odds: 'ESPN', result: 'LIVE' },
+  { match: 'College', pick: 'NCAA', odds: 'Massey', result: 'LIVE' },
 ];
 
 export default function LandingPage() {
@@ -146,7 +146,7 @@ export default function LandingPage() {
               </span>
               <span className="w-1 h-1 rounded-full bg-white/20" />
               <span className="font-label text-[11px] uppercase tracking-[0.2em] font-semibold text-tertiary">
-                847 picks today
+                Real odds • Updated live
               </span>
             </motion.div>
 
@@ -174,8 +174,8 @@ export default function LandingPage() {
               transition={{ delay: 0.2 }}
               className="font-body text-lg md:text-xl text-on-surface-variant max-w-2xl mx-auto mb-12 leading-relaxed"
             >
-              Access elite data visualization for NBA, NFL, MLB, Soccer, UFC, and College sports. 
-              Join <span className="text-primary font-semibold">10,000+</span> tactical analysts using our proprietary AI.
+              Real-time data visualization for NBA, NFL, MLB, Soccer, UFC, and College sports. 
+              Every pick is evaluated by a structured AI that weighs calibrated probabilities against live market odds.
             </motion.p>
 
             <motion.div
@@ -212,10 +212,10 @@ export default function LandingPage() {
             className="mt-20 grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto w-full"
           >
             {[
-              { label: 'Success Rate', value: '82%', subtext: 'Last 30 Days', color: 'tertiary', icon: '📈' },
-              { label: 'Community', value: '10k+', subtext: 'Active Users', color: 'primary', icon: '👥' },
-              { label: 'Avg ROI', value: '+14.2%', subtext: 'Per pick', color: 'on-surface', icon: '💰' },
-              { label: 'Live Coverage', value: '24/7', subtext: 'Global Sports', color: 'secondary', icon: '🌍' },
+              { label: 'Covered Sports', value: '8', subtext: 'NBA · NFL · MLB · Soccer', color: 'tertiary', icon: '🏆' },
+              { label: 'Odds Sources', value: '350+', subtext: 'Pinnacle & major books', color: 'primary', icon: '📊' },
+              { label: 'AI Engine', value: 'Jev', subtext: 'TypeSafe System One', color: 'on-surface', icon: '🧠' },
+              { label: 'Live Data', value: 'Real', subtext: 'ESPN · Massey ratings', color: 'secondary', icon: '🌍' },
             ].map((stat, i) => (
               <motion.div
                 key={stat.label}
@@ -242,11 +242,11 @@ export default function LandingPage() {
           </motion.div>
         </section>
 
-        {/* Live Wins Ticker */}
+        {/* Live Coverage Ticker */}
         <section className="relative w-full py-6 border-y border-white/5 bg-surface-container-low/50">
           <div className="ticker-wrap flex">
             <div className="ticker-move flex gap-12 items-center">
-              {[...recentWins, ...recentWins].map((win, i) => (
+              {[...liveSources, ...liveSources].map((win, i) => (
                 <div key={i} className="flex items-center gap-4 shrink-0">
                   <span className="flex items-center gap-3">
                     <span className="font-semibold text-on-surface-variant text-sm">{win.match}</span>
@@ -255,7 +255,7 @@ export default function LandingPage() {
                     <span className="text-on-surface-variant/50">@</span>
                     <span className="text-on-surface-variant text-sm">{win.odds}</span>
                   </span>
-                  <span className="px-2.5 py-1 rounded-full bg-tertiary/10 text-tertiary text-xs font-bold">
+                  <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
                     {win.result}
                   </span>
                 </div>
@@ -361,15 +361,16 @@ export default function LandingPage() {
                   Win Probability Engine
                 </h3>
                 <p className="text-on-surface-variant text-sm mb-6 leading-relaxed">
-                  AI simulates games 10,000 times to find the most profitable discrepancies.
+                  Structured AI decisions compare each team&apos;s win probability against live moneyline odds to surface value plays.
                 </p>
                 <div className="p-4 rounded-xl bg-surface-container-high/50 border border-white/5">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-on-surface-variant">NFL Model v4.2</span>
-                    <span className="text-xs font-bold text-tertiary">ACTIVE</span>
+                    <span className="text-xs text-on-surface-variant">Jev · TypeSafe System One</span>
+                    <span className="text-xs font-bold text-primary">LIVE</span>
                   </div>
-                  <div className="h-2 bg-surface-container-high rounded-full overflow-hidden">
-                    <div className="h-full w-[78%] bg-gradient-to-r from-tertiary to-tertiary/50 rounded-full" />
+                  <div className="flex items-center justify-between text-[10px] text-on-surface-variant">
+                    <span>8 covered sports</span>
+                    <span>Routed via OpenRouter</span>
                   </div>
                 </div>
               </div>
@@ -435,7 +436,7 @@ export default function LandingPage() {
                   Ready to Win?
                 </h2>
                 <p className="text-on-surface-variant text-lg md:text-xl max-w-xl mx-auto mb-10 leading-relaxed">
-                  Stop guessing. Start winning. Join thousands of analysts today and secure your edge.
+                  Stop guessing. Start tracking. Get real odds, structured AI analysis, and a full record of every pick you make — free.
                 </p>
                 <Link href="/register" className="inline-block">
                   <button className="bg-gradient-to-r from-tertiary to-tertiary/80 text-on-tertiary font-['Space_Grotesk'] font-bold py-5 px-14 rounded-2xl text-lg hover:shadow-2xl hover:shadow-tertiary/30 active:scale-95 transition-all">

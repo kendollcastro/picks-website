@@ -85,22 +85,22 @@ export default function LoginPage() {
               predictions
             </h2>
             <p className="text-on-surface-variant text-lg">
-              Join thousands of smart bettors who trust our advanced algorithms to make smarter picks.
+              Track every pick, compare real odds, and get structured AI analysis for all major sports.
             </p>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-surface-container-low/50 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
-              <p className="text-3xl font-black font-['Space_Grotesk'] text-tertiary">82%</p>
-              <p className="text-xs text-on-surface-variant">Win Rate</p>
+              <p className="text-3xl font-black font-['Space_Grotesk'] text-tertiary">8</p>
+              <p className="text-xs text-on-surface-variant">Covered Sports</p>
             </div>
             <div className="bg-surface-container-low/50 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
-              <p className="text-3xl font-black font-['Space_Grotesk'] text-primary">$2.4M</p>
-              <p className="text-xs text-on-surface-variant">Payouts</p>
+              <p className="text-3xl font-black font-['Space_Grotesk'] text-primary">350+</p>
+              <p className="text-xs text-on-surface-variant">Odds Sources</p>
             </div>
             <div className="bg-surface-container-low/50 backdrop-blur-sm rounded-2xl p-4 border border-white/5">
-              <p className="text-3xl font-black font-['Space_Grotesk'] text-secondary">15K+</p>
-              <p className="text-xs text-on-surface-variant">Users</p>
+              <p className="text-3xl font-black font-['Space_Grotesk'] text-secondary">Jev</p>
+              <p className="text-xs text-on-surface-variant">AI Engine</p>
             </div>
           </div>
 
