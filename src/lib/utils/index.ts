@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+function getUserTimeZone(): string {
+  try {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return timeZone || 'America/Costa_Rica';
+  } catch {
+    return 'America/Costa_Rica';
+  }
+}
+
 export function formatOdds(odds: number): string {
   if (odds > 0) return `+${odds}`;
   return `${odds}`;
@@ -60,7 +69,7 @@ export function formatDate(date: string | Date): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-    timeZone: 'America/New_York',
+    timeZone: getUserTimeZone(),
   }).format(new Date(date));
 }
 
@@ -69,7 +78,7 @@ export function formatTime(date: string | Date): string {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-    timeZone: 'America/New_York',
+    timeZone: getUserTimeZone(),
   }).format(new Date(date));
 }
 
@@ -101,7 +110,7 @@ export function formatGameDate(date: string | Date): string {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-    timeZone: 'America/New_York',
+    timeZone: getUserTimeZone(),
   }).format(d);
 }
 
@@ -114,7 +123,7 @@ export function formatGameTime(date: string | Date): string {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-    timeZone: 'America/New_York',
+    timeZone: getUserTimeZone(),
   }).format(d);
 }
 
@@ -124,13 +133,14 @@ export function isGameToday(date: string | Date): boolean {
   if (isNaN(d.getTime())) return false;
   
   const now = new Date();
+  const userTz = getUserTimeZone();
   
   const gameDateStr = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: userTz,
   }).format(d);
   
   const nowStr = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: userTz,
   }).format(now);
   
   return gameDateStr === nowStr;
