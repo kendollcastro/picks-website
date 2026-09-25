@@ -58,13 +58,86 @@ export interface PickStats {
   streak_type: 'win' | 'loss';
 }
 
+function parsePickSelection(selection: string, pickType: string): { team?: string; isOver?: boolean; line?: number; side?: string } {
+  const parts = selection.split(' ');
+  
+  if (pickType === 'moneyline') {
+    return { team: selection.replace(' ML', '').trim() };
+  }
+  
+  if (pickType === 'spread') {
+    const team = parts[0];
+    const spread = parseFloat(parts[1] || '0');
+    return { team, side: spread > 0 ? 'underdog' : 'favorite' };
+  }
+  
+  if (pickType === 'total') {
+    const isOver = parts[0] === 'Over';
+    const line = parseFloat(parts[1] || '0');
+    return { isOver, line };
+  }
+  
+  return {};
+}
+
+function settlePick(pick: Pick, game: { homeScore: number; awayScore: number; status: string; homeTeam: string; awayTeam: string; isLive: boolean }): 'won' | 'lost' | 'push' | null {
+  if (game.status !== 'Final' || game.isLive) return null;
+  
+  const parsed = parsePickSelection(pick.selection, pick.pick_type);
+  const homeWon = game.homeScore > game.awayScore;
+  const awayWon = game.awayScore > game.homeScore;
+  const isTie = game.homeScore === game.awayScore;
+  
+  if (pick.pick_type === 'moneyline') {
+    if (parsed.team === game.homeTeam && homeWon) return 'won';
+    if (parsed.team === game.awayTeam && awayWon) return 'won';
+    if (isTie) return 'push';
+    return 'lost';
+  }
+  
+  if (pick.pick_type === 'spread') {
+    const spreadValue = Math.abs(parseFloat(pick.selection.split(' ')[1] || '0'));
+    let adjustedHomeScore = game.homeScore;
+    let adjustedAwayScore = game.awayScore;
+    
+    if (pick.selection.includes(game.homeTeam)) {
+      if (pick.selection.includes('+')) {
+        adjustedHomeScore += spreadValue;
+      } else {
+        adjustedHomeScore -= spreadValue;
+      }
+    } else if (pick.selection.includes(game.awayTeam)) {
+      if (pick.selection.includes('+')) {
+        adjustedAwayScore += spreadValue;
+      } else {
+        adjustedAwayScore -= spreadValue;
+      }
+    }
+    
+    if (adjustedHomeScore > adjustedAwayScore) return 'won';
+    if (adjustedAwayScore > adjustedHomeScore) return 'lost';
+    return 'push';
+  }
+  
+  if (pick.pick_type === 'total') {
+    const totalScore = game.homeScore + game.awayScore;
+    const line = parsed.line || 0;
+    
+    if (parsed.isOver && totalScore > line) return 'won';
+    if (!parsed.isOver && totalScore < line) return 'won';
+    if (totalScore === line) return 'push';
+    return 'lost';
+  }
+  
+  return null;
+}
+
 export function usePicks() {
   const [picks, setPicks] = useState<Pick[]>([]);
   const [stats, setStats] = useState<PickStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const supabase = createClient();
 
-  // Calculate stats from picks
   const calculateStats = (picksData: Pick[]): PickStats => {
     const wins = picksData.filter(p => p.status === 'won').length;
     const losses = picksData.filter(p => p.status === 'lost').length;
@@ -264,13 +337,52 @@ export function usePicks() {
     }
   };
 
-  // Initial fetch
+  // Auto-settle picks based on game results
+  const settlePicks = useCallback(async (gamesData: Record<string, { homeScore: number; awayScore: number; status: string; homeTeam: string; awayTeam: string; isLive: boolean }>) => {
+    const pendingPicks = picks.filter(p => p.status === 'pending');
+    if (pendingPicks.length === 0) return;
+
+    for (const pick of pendingPicks) {
+      const matchId = pick.match_id || `${pick.sport}-${pick.home_team}-${pick.away_team}`;
+      const game = gamesData[matchId] || Object.values(gamesData).find(
+        (g: { homeTeam: string; awayTeam: string }) => 
+          (g.homeTeam === pick.home_team && g.awayTeam === pick.away_team) ||
+          (g.homeTeam === pick.away_team && g.awayTeam === pick.home_team)
+      );
+
+      if (!game || game.status !== 'Final' || game.isLive) continue;
+
+      const result = settlePick(pick, game);
+      if (result) {
+        const { error } = await supabase
+          .from('picks')
+          .update({
+            status: result,
+            home_score: game.homeScore,
+            away_score: game.awayScore,
+            settled_at: new Date().toISOString(),
+          })
+          .eq('id', pick.id);
+
+        if (error) {
+          console.error('Error settling pick:', error);
+        }
+      }
+    }
+
+    await fetchPicks();
+  }, [picks, supabase, fetchPicks]);
+
+  // Initial fetch - load data without showing initial loading spinner
   useEffect(() => {
+    // Start with empty state, don't show loading
     const loadPicks = async () => {
-      setLoading(true);
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          setPicks([]);
+          return;
+        }
         
         const { data: picksData, error: picksError } = await supabase
           .from('picks')
@@ -278,24 +390,20 @@ export function usePicks() {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         
-        if (picksError) throw picksError;
-        
-        const { data: statsData } = await supabase
-          .from('pick_stats')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        
+        if (picksError) {
+          console.warn('Error fetching picks:', picksError.message);
+        }
+
         setPicks(picksData || []);
-        if (statsData) setStats(statsData);
+        setStats(calculateStats((picksData || []) as Pick[]));
       } catch (error) {
         console.error('Error fetching picks:', error);
-      } finally {
-        setLoading(false);
       }
     };
+    
     loadPicks();
-  }, [supabase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     picks,
@@ -305,25 +413,6 @@ export function usePicks() {
     updatePickStatus,
     deletePick,
     refresh: fetchPicks,
+    settlePicks,
   };
-}
-
-// Utility functions
-export function formatOdds(american: number): string {
-  if (american > 0) return `+${american}`;
-  return `${american}`;
-}
-
-export function calculatePayout(stake: number, odds: number): number {
-  if (odds > 0) {
-    return stake + (stake * (odds / 100));
-  }
-  return stake + (stake * (100 / Math.abs(odds)));
-}
-
-export function calculateProfit(stake: number, odds: number): number {
-  if (odds > 0) {
-    return stake * (odds / 100);
-  }
-  return stake * (100 / Math.abs(odds));
 }

@@ -28,6 +28,28 @@ export const API_CONFIG = {
   },
 
   // ============================================
+  // 1b. ODDS PAPI - Primary odds source (FREE: 250 req/month, incl. Pinnacle)
+  // https://oddspapi.com/ - key: NEXT_PUBLIC_ODDSPAPI_KEY
+  // Moneyline-only channel. Shared client in src/lib/api/oddspapi.ts
+  // ============================================
+  ODDS_PAPI: {
+    BASE_URL: 'https://api.oddspapi.io/v4',
+    KEY: process.env.NEXT_PUBLIC_ODDSPAPI_KEY || '',
+    FREE_LIMIT: 250, // requests per month
+    SPORT_IDS: {
+      nba: 11,
+      nfl: 14,
+      mlb: 13,
+      soccer: 10,
+      ufc: 20,
+      'college-football': 14,
+      'college-basketball': 11,
+      'womens-basketball': 11,
+    },
+    MARKET_ID: 1, // moneyline (1X2)
+  },
+
+  // ============================================
   // 2. API-SPORTS - Comprehensive Data (FREE: 100 req/day)
   // https://api-sports.io/
   // ============================================

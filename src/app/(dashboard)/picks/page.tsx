@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { cn, formatGameTime, formatGameDate } from '@/lib/utils';
-import { useLiveData, formatOdds, type LiveGame } from '@/hooks/useLiveData';
+import { cn, formatGameTime, formatGameDate, formatOdds } from '@/lib/utils';
+import { useLiveData, type LiveGame } from '@/hooks/useLiveData';
 import { usePicks, type CreatePickInput } from '@/hooks/usePicks';
+import { usePredictions } from '@/hooks/usePredictions';
 import {
   RefreshCw,
   Loader2,
@@ -19,6 +20,7 @@ import {
   TrendingUp,
   Hash,
   Scale,
+  Zap,
 } from 'lucide-react';
 
 const sports = [
@@ -174,7 +176,24 @@ type TabType = 'ai-picks' | 'my-picks';
 
 interface PickModalData {
   game: LiveGame;
-  prediction: ReturnType<typeof calculatePrediction>;
+  prediction: {
+    pickTeam: string;
+    pickOdds: number;
+    pickType: string;
+    homeWinProb: number;
+    awayWinProb: number;
+    confidence: number;
+    edge: number;
+    analyses: string[];
+    recommendations: Array<{
+      type: string;
+      pick: string;
+      reason: string;
+      odds: number;
+      pickType: string;
+      valueScore?: number;
+    }>;
+  };
   selectedRec: number;
 }
 
@@ -189,7 +208,28 @@ export default function SportsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { games, loading: gamesLoading, refresh: refreshGames } = useLiveData(selectedSport);
-  const { picks: myPicks, stats: pickStats, loading: picksLoading, createPick } = usePicks();
+  const { picks: myPicks, stats: pickStats, createPick, settlePicks } = usePicks();
+  
+  // Enhanced predictions with real odds + ML ensemble
+  const { predictions: enhancedPredictions, loading: predictionsLoading, refresh: refreshPredictions } = usePredictions(selectedSport);
+
+  // Auto-settle picks when games have results
+  useEffect(() => {
+    if (games.length > 0) {
+      const gamesData: Record<string, { homeScore: number; awayScore: number; status: string; homeTeam: string; awayTeam: string; isLive: boolean }> = {};
+      games.forEach(game => {
+        gamesData[game.id] = {
+          homeScore: game.homeScore,
+          awayScore: game.awayScore,
+          status: game.status,
+          homeTeam: game.homeTeam,
+          awayTeam: game.awayTeam,
+          isLive: game.isLive,
+        };
+      });
+      settlePicks(gamesData);
+    }
+  }, [games, settlePicks]);
 
   const liveGames = games.filter(g => g.isLive);
   const upcomingGames = games.filter(g => !g.isLive && g.status !== 'Final');
@@ -204,14 +244,53 @@ export default function SportsPage() {
     return { ...game, prediction };
   });
 
-  const handleRefresh = () => {
-    refreshGames();
-  };
-
   const handleTakePick = (game: typeof gamesWithPredictions[0]) => {
     setModalData({
       game,
       prediction: game.prediction,
+      selectedRec: 0,
+    });
+    setStake('100');
+    setErrorMessage(null);
+  };
+
+  const handleEnhancedPick = (item: { game: { id: string; homeTeam: string; awayTeam: string; homeMoneyline?: number; awayMoneyline?: number; sport: string; gameTime: string }; prediction: { pickType?: string; pickString: string; pickOdds: number; confidence: number; edge: number; analyses: string[]; homeWinProb?: number; awayWinProb?: number; valueRating?: number } }) => {
+    const prediction = {
+      pickTeam: item.prediction.pickString,
+      pickOdds: item.prediction.pickOdds || -110,
+      pickType: (item.prediction.pickType || 'moneyline') as 'moneyline' | 'spread' | 'total',
+      homeWinProb: item.prediction.homeWinProb || 50,
+      awayWinProb: item.prediction.awayWinProb || 50,
+      confidence: item.prediction.confidence,
+      edge: item.prediction.edge,
+      analyses: item.prediction.analyses,
+      recommendations: [{
+        type: item.prediction.pickType || 'Moneyline',
+        pick: item.prediction.pickString,
+        reason: item.prediction.analyses[0] || 'AI recommendation',
+        odds: item.prediction.pickOdds || -110,
+        pickType: item.prediction.pickType || 'moneyline',
+        valueScore: (item.prediction.valueRating || 3) * 10,
+      }],
+    };
+    
+    setModalData({
+      game: {
+        id: item.game.id,
+        homeTeam: item.game.homeTeam,
+        awayTeam: item.game.awayTeam,
+        homeScore: 0,
+        awayScore: 0,
+        status: 'Scheduled',
+        period: '',
+        clock: '',
+        isLive: false,
+        gameTime: item.game.gameTime,
+        homeLogo: '',
+        awayLogo: '',
+        sport: item.game.sport,
+      },
+      prediction,
       selectedRec: 0,
     });
     setStake('100');
@@ -289,11 +368,11 @@ export default function SportsPage() {
           <p className="text-on-surface-variant text-sm mt-1">AI-powered picks & tracking</p>
         </div>
         <button
-          onClick={handleRefresh}
-          disabled={gamesLoading}
+          onClick={() => { refreshGames(); refreshPredictions(); }}
+          disabled={gamesLoading || predictionsLoading}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-high border border-white/5 hover:bg-white/10 transition-colors"
         >
-          {gamesLoading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+          {gamesLoading || predictionsLoading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
         </button>
       </div>
 
@@ -386,7 +465,7 @@ export default function SportsPage() {
 
           {/* Games with AI Predictions - Grid Layout */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {gamesLoading && games.length === 0 ? (
+            {(gamesLoading || predictionsLoading) && games.length === 0 ? (
               <>
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="glass-card rounded-2xl p-4 animate-pulse">
@@ -407,10 +486,20 @@ export default function SportsPage() {
                   </div>
                 ))}
               </>
-            ) : gamesWithPredictions.length === 0 ? (
+            ) : gamesWithPredictions.length === 0 && enhancedPredictions.length === 0 ? (
               <div className="col-span-full bg-surface-container-high rounded-xl p-8 text-center border border-white/5">
                 <p className="text-on-surface-variant">No games available for this sport</p>
               </div>
+            ) : enhancedPredictions.length > 0 ? (
+              // Use enhanced predictions when available
+              enhancedPredictions.map((item) => (
+                <EnhancedAIPredictionCard
+                  key={item.game.id}
+                  game={item.game}
+                  prediction={item.prediction}
+                  onTakePick={() => handleEnhancedPick(item)}
+                />
+              ))
             ) : (
               gamesWithPredictions.map((game) => (
                 <AIPredictionCard
@@ -427,7 +516,7 @@ export default function SportsPage() {
 
       {/* My Picks Tab */}
       {activeTab === 'my-picks' && (
-        <MyPicksView picks={myPicks} stats={pickStats} loading={picksLoading} onSwitchTab={() => setActiveTab('ai-picks')} />
+        <MyPicksView picks={myPicks} stats={pickStats} onSwitchTab={() => setActiveTab('ai-picks')} />
       )}
 
       {/* ============================================ */}
@@ -843,17 +932,179 @@ function AIPredictionCard({
 }
 
 // ============================================
+// ENHANCED AI PREDICTION CARD (with real odds + ensemble)
+// ============================================
+function EnhancedAIPredictionCard({
+  game,
+  prediction,
+  onTakePick,
+}: {
+  game: { id: string; homeTeam: string; awayTeam: string; homeMoneyline?: number; awayMoneyline?: number; sport: string; gameTime: string };
+  prediction: {
+    pickTeam: string;
+    pickString: string;
+    pickOdds: number;
+    confidence: number;
+    confidenceStars: number;
+    edge: number;
+    valueRating: number;
+    analyses: string[];
+    homeWinProb: number;
+    awayWinProb: number;
+  };
+  onTakePick: () => void;
+}) {
+  const timeStr = formatGameTime(game.gameTime);
+  const dateStr = formatGameDate(game.gameTime);
+  
+  const isHighValue = prediction.valueRating >= 4;
+  const gameStarted = new Date(game.gameTime) < new Date();
+  
+  return (
+    <div className="glass-card rounded-2xl overflow-hidden group hover:border-white/15 transition-all duration-300 flex flex-col min-h-[380px]">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-surface-container-low/50 border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-on-surface-variant flex items-center gap-1.5">
+            <Clock size={11} />
+            {dateStr} • {timeStr}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Zap size={12} className="text-tertiary" />
+          <span className="text-[10px] font-bold text-tertiary">ENSEMBLE</span>
+        </div>
+      </div>
+
+      {/* Game Info */}
+      <div className="p-4 flex-1 flex flex-col">
+        <div className="flex items-center justify-between mb-3">
+          {/* Away Team */}
+          <div className="flex-1 flex flex-col items-center min-w-0">
+            <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center mb-2 text-sm font-black text-on-surface-variant uppercase">
+              {game.awayTeam.substring(0, 3)}
+            </div>
+            <p className="font-semibold text-xs text-center w-full px-1 truncate">{game.awayTeam}</p>
+          </div>
+
+          <div className="px-3 flex flex-col items-center">
+            <span className="text-on-surface-variant font-bold text-sm">@</span>
+          </div>
+
+          {/* Home Team */}
+          <div className="flex-1 flex flex-col items-center min-w-0">
+            <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center mb-2 text-sm font-black text-on-surface-variant uppercase">
+              {game.homeTeam.substring(0, 3)}
+            </div>
+            <p className="font-semibold text-xs text-center w-full px-1 truncate">{game.homeTeam}</p>
+          </div>
+        </div>
+
+        {/* Best Pick - Enhanced */}
+        <div className={cn(
+          'rounded-xl p-3 border-2 flex flex-col flex-grow',
+          isHighValue 
+            ? 'bg-gradient-to-br from-tertiary/20 to-tertiary/5 border-tertiary/40' 
+            : 'bg-gradient-to-br from-primary/20 to-primary/5 border-primary/30'
+        )}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                'w-6 h-6 rounded-lg flex items-center justify-center',
+                isHighValue ? 'bg-tertiary/20 text-tertiary' : 'bg-primary/20 text-primary'
+              )}>
+                <Sparkles size={12} />
+              </div>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Best Pick</p>
+            </div>
+            <div className="flex gap-0.5">
+              {Array(5).fill(0).map((_, i) => (
+                <Star
+                  key={i}
+                  size={11}
+                  className={i < prediction.confidenceStars ? 'text-tertiary' : 'text-surface-container-highest'}
+                  fill={i < prediction.confidenceStars ? 'currentColor' : 'none'}
+                />
+              ))}
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between mb-2">
+            <p className={cn(
+              'font-black text-lg',
+              isHighValue ? 'text-tertiary' : 'text-primary'
+            )}>
+              {prediction.pickString}
+            </p>
+            <span className="px-2 py-0.5 rounded bg-white/10 text-xs font-bold">
+              {formatOdds(prediction.pickOdds)}
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-between mt-auto">
+            {prediction.edge > 3 ? (
+              <span className={cn(
+                'px-2 py-0.5 rounded text-[9px] font-bold',
+                isHighValue ? 'bg-tertiary/30 text-tertiary' : 'bg-primary/30 text-primary'
+              )}>
+                +{prediction.edge.toFixed(1)}% EDGE
+              </span>
+            ) : (
+              <span />
+            )}
+            <p className="text-[10px] text-on-surface-variant text-right truncate max-w-[120px]">
+              {prediction.analyses[0]}
+            </p>
+          </div>
+        </div>
+
+        {/* Model Breakdown */}
+        <div className="mt-3">
+          <p className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider mb-2">Model Probabilities</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-surface-container-high/50 rounded-lg p-2.5 border border-white/5">
+              <p className="text-[8px] font-bold uppercase text-on-surface-variant mb-1">Home Win</p>
+              <p className="font-semibold text-sm">{prediction.homeWinProb?.toFixed(1) || '50'}%</p>
+            </div>
+            <div className="bg-surface-container-high/50 rounded-lg p-2.5 border border-white/5">
+              <p className="text-[8px] font-bold uppercase text-on-surface-variant mb-1">Away Win</p>
+              <p className="font-semibold text-sm">{prediction.awayWinProb?.toFixed(1) || '50'}%</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Take Pick Button */}
+        {!gameStarted && (
+          <button
+            onClick={onTakePick}
+            className="w-full py-2.5 bg-gradient-to-r from-tertiary to-tertiary/80 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-lg shadow-tertiary/20 hover:shadow-tertiary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 mt-3"
+          >
+            <Bolt size={14} />
+            Take Pick
+          </button>
+        )}
+        {gameStarted && (
+          <div className="w-full py-2.5 bg-surface-container-low rounded-xl text-center mt-3">
+            <p className="text-[10px] text-on-surface-variant uppercase tracking-wider">
+              Game ended
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // MY PICKS VIEW
 // ============================================
 function MyPicksView({
   picks,
   stats: _stats,
-  loading,
   onSwitchTab,
 }: {
   picks: ReturnType<typeof usePicks>['picks'];
   stats: ReturnType<typeof usePicks>['stats'];
-  loading: boolean;
   onSwitchTab: () => void;
 }) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'won' | 'lost' | 'push'>('all');
@@ -941,14 +1192,7 @@ function MyPicksView({
     return typeMap;
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 size={32} className="animate-spin text-primary" />
-      </div>
-    );
-  }
-
+  // Don't show loading spinner - just show content or empty state
   if (picks.length === 0) {
     return (
       <div className="bg-surface-container-high rounded-xl p-8 text-center border border-white/5">

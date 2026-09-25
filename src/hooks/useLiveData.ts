@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { isGameToday, isGameInFuture } from '@/lib/utils';
+import { fetchOddsPapiGames } from '@/lib/api/oddspapi';
 
 // ============================================
 // TYPES
@@ -320,7 +321,7 @@ async function fetchESPNScores(sport: string): Promise<LiveGame[]> {
   try {
     const response = await fetch(
       `https://site.api.espn.com/apis/site/v2/sports/${sportPath}/scoreboard`,
-      { next: { revalidate: 30 } }
+      { cache: 'no-store' }
     );
 
     if (!response.ok) {
@@ -382,6 +383,21 @@ async function fetchESPNScores(sport: string): Promise<LiveGame[]> {
 // ============================================
 // ODDS API SERVICE (with fallback)
 // ============================================
+function mapOddsPapiToGameOdds(games: import('@/lib/api/oddspapi').OddsPapiGame[]): GameOdds[] {
+  return games.map((game) => ({
+    id: game.id,
+    sport: game.sport,
+    homeTeam: game.homeTeam,
+    awayTeam: game.awayTeam,
+    gameTime: game.gameTime,
+    homeMoneyline: game.homeMoneyline,
+    awayMoneyline: game.awayMoneyline,
+    spread: -3.5,
+    total: 215.5,
+    bookmaker: game.bookmaker,
+  }));
+}
+
 async function fetchOdds(sport: string): Promise<GameOdds[]> {
   const sportKeys: Record<string, string> = {
     nba: 'basketball_nba',
@@ -400,16 +416,19 @@ async function fetchOdds(sport: string): Promise<GameOdds[]> {
   try {
     const apiKey = process.env.NEXT_PUBLIC_ODDS_API_KEY || '';
     if (!apiKey) {
-      console.warn('No Odds API key, using mock odds');
+      const papiGames = await fetchOddsPapiGames(sport);
+      if (papiGames.length > 0) return mapOddsPapiToGameOdds(papiGames);
+      console.warn('No odds data source configured, using mock odds');
       return getMockOdds(sport);
     }
 
     const response = await fetch(
-      `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`
+      `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${apiKey}&regions=us,uk,eu&markets=h2h,spreads,totals,player_props&oddsFormat=american`
     );
 
     if (!response.ok) {
-      // API quota exceeded or error, use mock data
+      const papiGames = await fetchOddsPapiGames(sport);
+      if (papiGames.length > 0) return mapOddsPapiToGameOdds(papiGames);
       console.warn('Odds API error, using mock odds');
       return getMockOdds(sport);
     }
@@ -454,6 +473,222 @@ async function fetchOdds(sport: string): Promise<GameOdds[]> {
   } catch (error) {
     console.error('Error fetching odds, using mock:', error);
     return getMockOdds(sport);
+  }
+}
+
+// ============================================
+// ENHANCED ODDS - Multiple Bookmakers Comparison
+// ============================================
+export interface BookmakerOdds {
+  bookmaker: string;
+  homeMoneyline: number;
+  awayMoneyline: number;
+  spread: number;
+  total: number;
+}
+
+export interface EnhancedGameOdds extends GameOdds {
+  bookmakerOdds: BookmakerOdds[];
+  bestHomeOdds: number;
+  bestAwayOdds: number;
+  bestSpread: number;
+  bestTotal: number;
+  arbitrageOpportunity: number | null;
+}
+
+async function fetchEnhancedOdds(sport: string): Promise<EnhancedGameOdds[]> {
+  const sportKeys: Record<string, string> = {
+    nba: 'basketball_nba',
+    nfl: 'americanfootball_nfl',
+    mlb: 'baseball_mlb',
+    soccer: 'soccer_epl',
+    ufc: 'mma_mixed_martial_arts',
+    'college-football': 'americanfootball_ncaaf',
+    'college-basketball': 'basketball_ncaab',
+    'womens-basketball': 'basketball_wncaab',
+  };
+
+  const sportKey = sportKeys[sport];
+  if (!sportKey) return [];
+
+  try {
+    const apiKey = process.env.NEXT_PUBLIC_ODDS_API_KEY || '';
+    if (!apiKey) return [];
+
+    const response = await fetch(
+      `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${apiKey}&regions=us,uk,eu&markets=h2h,spreads,totals&oddsFormat=american`
+    );
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    if (!data || data.length === 0) return [];
+
+    const gamesMap = new Map<string, {
+      homeTeam: string;
+      awayTeam: string;
+      gameTime: string;
+      bookmakerOdds: BookmakerOdds[];
+    }>();
+
+    for (const game of data) {
+      const bookmakerOdds: BookmakerOdds[] = game.bookmakers.map((bm: {
+        title: string;
+        markets: Array<{
+          key: string;
+          outcomes: Array<{ name: string; price: number; point?: number }>;
+        }>;
+      }) => {
+        const ml = bm.markets.find((m) => m.key === 'h2h');
+        const sp = bm.markets.find((m) => m.key === 'spreads');
+        const tot = bm.markets.find((m) => m.key === 'totals');
+        
+        return {
+          bookmaker: bm.title,
+          homeMoneyline: ml?.outcomes?.find((o) => o.name === game.home_team)?.price || -110,
+          awayMoneyline: ml?.outcomes?.find((o) => o.name === game.away_team)?.price || -110,
+          spread: sp?.outcomes?.find((o) => o.name === game.home_team)?.point || -3.5,
+          total: tot?.outcomes?.find((o) => o.name === 'Over')?.point || 215.5,
+        };
+      });
+
+      const existing = gamesMap.get(game.id);
+      if (!existing) {
+        gamesMap.set(game.id, {
+          homeTeam: game.home_team,
+          awayTeam: game.away_team,
+          gameTime: game.commence_time,
+          bookmakerOdds,
+        });
+      } else {
+        existing.bookmakerOdds.push(...bookmakerOdds);
+      }
+    }
+
+    const results: EnhancedGameOdds[] = [];
+    
+    for (const [id, game] of gamesMap) {
+      const bestHome = Math.max(...game.bookmakerOdds.map(b => b.homeMoneyline));
+      const bestAway = Math.max(...game.bookmakerOdds.map(b => b.awayMoneyline));
+      const bestSp = game.bookmakerOdds.reduce((best, b) => 
+        b.spread > best.spread ? b : best, game.bookmakerOdds[0]);
+      const bestTot = game.bookmakerOdds.reduce((best, b) => 
+        b.total > best.total ? b : best, game.bookmakerOdds[0]);
+
+      const homeImplied = bestHome > 0 ? 100 / (bestHome + 100) : Math.abs(bestHome) / (Math.abs(bestHome) + 100);
+      const awayImplied = bestAway > 0 ? 100 / (bestAway + 100) : Math.abs(bestAway) / (Math.abs(bestAway) + 100);
+      const totalImplied = homeImplied + awayImplied;
+      const arb = totalImplied < 1 ? (1 - totalImplied) * 100 : null;
+
+      results.push({
+        id,
+        sport,
+        homeTeam: game.homeTeam,
+        awayTeam: game.awayTeam,
+        gameTime: game.gameTime,
+        homeMoneyline: game.bookmakerOdds[0]?.homeMoneyline || -110,
+        awayMoneyline: game.bookmakerOdds[0]?.awayMoneyline || -110,
+        spread: game.bookmakerOdds[0]?.spread || -3.5,
+        total: game.bookmakerOdds[0]?.total || 215.5,
+        bookmaker: game.bookmakerOdds[0]?.bookmaker || 'N/A',
+        bookmakerOdds: game.bookmakerOdds,
+        bestHomeOdds: bestHome,
+        bestAwayOdds: bestAway,
+        bestSpread: bestSp.spread,
+        bestTotal: bestTot.total,
+        arbitrageOpportunity: arb,
+      });
+    }
+
+    return results;
+  } catch (error) {
+    console.error('Error fetching enhanced odds:', error);
+    return [];
+  }
+}
+
+// ============================================
+// HISTORICAL ODDS (for AI training)
+// ============================================
+export interface HistoricalOdds {
+  id: string;
+  sport: string;
+  homeTeam: string;
+  awayTeam: string;
+  gameDate: string;
+  homeMoneyline: number;
+  awayMoneyline: number;
+  spread: number;
+  total: number;
+  homeScore: number;
+  awayScore: number;
+  result: 'home' | 'away' | 'push';
+}
+
+async function fetchHistoricalOdds(sport: string, daysBack: number = 30): Promise<HistoricalOdds[]> {
+  const sportKeys: Record<string, string> = {
+    nba: 'basketball_nba',
+    nfl: 'americanfootball_nfl',
+    mlb: 'baseball_mlb',
+    soccer: 'soccer_epl',
+    ufc: 'mma_mixed_martial_arts',
+    'college-football': 'americanfootball_ncaaf',
+    'college-basketball': 'basketball_ncaab',
+  };
+
+  const sportKey = sportKeys[sport];
+  if (!sportKey) return [];
+
+  try {
+    const apiKey = process.env.NEXT_PUBLIC_ODDS_API_KEY || '';
+    if (!apiKey) return [];
+
+    const response = await fetch(
+      `https://api.the-odds-api.com/v4/sports/${sportKey}/historical/?apiKey=${apiKey}&regions=us&daysFrom=${daysBack}&oddsFormat=american`
+    );
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    if (!data || !data.data) return [];
+
+    const results: HistoricalOdds[] = [];
+    
+    for (const event of data.data) {
+      if (!event.completed) continue;
+      
+      const homeScore = event.scores?.[event.home_team]?.score || 0;
+      const awayScore = event.scores?.[event.away_team]?.score || 0;
+      
+      let result: 'home' | 'away' | 'push' = 'push';
+      if (homeScore > awayScore) result = 'home';
+      else if (awayScore > homeScore) result = 'away';
+
+      const bm = event.bookmakers?.[0];
+      const ml = bm?.markets?.find((m: { key: string }) => m.key === 'h2h');
+      const sp = bm?.markets?.find((m: { key: string }) => m.key === 'spreads');
+      const tot = bm?.markets?.find((m: { key: string }) => m.key === 'totals');
+
+      results.push({
+        id: event.id,
+        sport,
+        homeTeam: event.home_team,
+        awayTeam: event.away_team,
+        gameDate: event.commence_time,
+        homeMoneyline: ml?.outcomes?.find((o: { name: string }) => o.name === event.home_team)?.price || -110,
+        awayMoneyline: ml?.outcomes?.find((o: { name: string }) => o.name === event.away_team)?.price || -110,
+        spread: sp?.outcomes?.find((o: { name: string }) => o.name === event.home_team)?.point || -3.5,
+        total: tot?.outcomes?.find((o: { name: string }) => o.name === 'Over')?.point || 215.5,
+        homeScore,
+        awayScore,
+        result,
+      });
+    }
+
+    return results;
+  } catch (error) {
+    console.error('Error fetching historical odds:', error);
+    return [];
   }
 }
 
@@ -539,7 +774,7 @@ export function usePredictions(sport: string = 'nba') {
       setLoading(true);
       const oddsData = await fetchOdds(sport);
       const todaysOdds = oddsData.filter((odd) => !isGameInFuture(odd.gameTime));
-      const preds = todaysOdds.map(generatePrediction);
+      const preds = todaysOdds.map(generateHeuristicPrediction);
       setPredictions(preds);
     } finally {
       setLoading(false);
@@ -554,7 +789,7 @@ export function usePredictions(sport: string = 'nba') {
     const interval = setInterval(() => {
       fetchOdds(sport).then((oddsData) => {
         const todaysOdds = oddsData.filter((odd) => !isGameInFuture(odd.gameTime));
-        setPredictions(todaysOdds.map(generatePrediction));
+        setPredictions(todaysOdds.map(generateHeuristicPrediction));
       }).catch(console.error);
     }, 90000);
     return () => clearInterval(interval);
@@ -563,8 +798,66 @@ export function usePredictions(sport: string = 'nba') {
   return { predictions, loading, refresh: fetchPredictions };
 }
 
-// Generate prediction from odds
-function generatePrediction(game: GameOdds): Prediction {
+// ============================================
+// ENHANCED ODDS HOOK
+// ============================================
+export function useEnhancedOdds(sport: string = 'nba') {
+  const [odds, setOdds] = useState<EnhancedGameOdds[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchEnhanced = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await fetchEnhancedOdds(sport);
+      setOdds(data.filter(odd => !isGameInFuture(odd.gameTime)));
+    } finally {
+      setLoading(false);
+    }
+  }, [sport]);
+
+  useEffect(() => {
+    fetchEnhanced();
+  }, [fetchEnhanced]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchEnhancedOdds(sport).then(data => {
+        setOdds(data.filter(odd => !isGameInFuture(odd.gameTime)));
+      }).catch(console.error);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [sport]);
+
+  return { odds, loading, refresh: fetchEnhanced };
+}
+
+// ============================================
+// HISTORICAL ODDS HOOK (for AI training data)
+// ============================================
+export function useHistoricalOdds(sport: string = 'nba', daysBack: number = 30) {
+  const [historical, setHistorical] = useState<HistoricalOdds[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchHistorical = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await fetchHistoricalOdds(sport, daysBack);
+      setHistorical(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [sport, daysBack]);
+
+  useEffect(() => {
+    fetchHistorical();
+  }, [fetchHistorical]);
+
+  return { historical, loading, refresh: fetchHistorical };
+}
+
+// Heuristic (odds-only) prediction for the dashboard "AI Predictions" section.
+// Distinct from the ensemble engine in src/lib/api/prediction-service.ts
+function generateHeuristicPrediction(game: GameOdds): Prediction {
   const homeImplied = game.homeMoneyline > 0
     ? 100 / (game.homeMoneyline + 100)
     : Math.abs(game.homeMoneyline) / (Math.abs(game.homeMoneyline) + 100);
@@ -605,10 +898,4 @@ function generatePrediction(game: GameOdds): Prediction {
       edge > 5 ? 'Strong value detected' : 'Moderate value',
     ],
   };
-}
-
-// Format odds helper
-export function formatOdds(american: number): string {
-  if (american > 0) return `+${american}`;
-  return `${american}`;
 }
