@@ -12,7 +12,7 @@ Live data comes from free APIs and falls back to mock data when they fail or lac
 | Source | Base URL | Key | Used for |
 |---|---|---|---|
 | ESPN (unofficial) | `site.api.espn.com/apis/site/v2/sports` | none | live scoreboards — **primary** (`.scoreboard` endpoint) |
-| The Odds API | `api.the-odds-api.com/v4` | `NEXT_PUBLIC_ODDS_API_KEY` | odds/lines, historical |
+| The Odds API | `api.the-odds-api.com/v4` | `ODDS_API_KEY` (server-only) | odds/lines via `/api/odds` proxy |
 | OddsPapi | `api.oddspapi.io/v4` | `NEXT_PUBLIC_ODDSPAPI_KEY` | odds in `usePredictions.ts` (primary there) |
 | API-Sports / Football-API | `vX.*.api-sports.io` | `API_SPORTS_KEY` / `FOOTBALL_API_KEY` | stats (not wired into UI) |
 | TheSportsDB / BallDontLie / Si API / OpenLigaDB | | | team logos, assets (partial wiring) |
@@ -33,9 +33,14 @@ ESPN path (`.espnKey`) vs The Odds key (`.oddsKey`):
 
 Polling intervals are hardcoded in each hook (30/60/90s). `CACHE_DURATION` in config.ts is NOT actually applied — real intervals live in the hooks.
 
-## Known bug — The Odds API never loads
+## The Odds API — server-side proxy (`/api/odds`)
 
-`process.env.NEXT_PUBLIC_ODDS_API_KEY` (read in `config.ts`, `useLiveData.ts:401/495/623`, `usePredictions.ts:168`) is **not present** in `.env.local`; the file only defines `NEXT_PUBLIC_ODDSPAPI_KEY`. Result: The Odds API always falls back to mock odds. Fix (when authorized): add `NEXT_PUBLIC_ODDS_API_KEY` to `.env.local` (The Odds API key), or unify on one variable name across `config.ts` + both hooks.
+`ODDS_API_KEY` lives **server-side only** (never `NEXT_PUBLIC_`). Client hooks call `GET /api/odds?sport=<nba|nfl|mlb|soccer|ufc|college-*|womens-basketball>` (`src/app/api/odds/route.ts`), which:
+- hits The Odds API with `regions=us&markets=h2h,spreads,totals` (3 credits/call),
+- caches per sport for 5 min in memory (dedupes users + every 30–90s poll),
+- forwards `x-requests-remaining`/`x-requests-used` headers.
+
+Historical odds (`historical` endpoint = 10× credits) is served from legacy client code that silently returns `[]` unless a `NEXT_PUBLIC_ODDS_API_KEY` is set — do not enable it casually; credits vanish fast.
 
 ## Fallback strategy (by design)
 

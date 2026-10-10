@@ -40,3 +40,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# odds-scraper
+odds-scraper/.venv/
+odds-scraper/data/
+odds-scraper/.env
+__pycache__/
+*.pyc

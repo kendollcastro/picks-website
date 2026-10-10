@@ -6,6 +6,8 @@ import { cn, formatGameTime, formatGameDate, formatOdds } from '@/lib/utils';
 import { useLiveData, type LiveGame } from '@/hooks/useLiveData';
 import { usePicks, type CreatePickInput } from '@/hooks/usePicks';
 import { usePredictions } from '@/hooks/usePredictions';
+import { useTopPicks } from '@/hooks/useTopPicks';
+import type { TopPick, TopPickGame } from '@/lib/api/jev-top-picks';
 import {
   RefreshCw,
   Loader2,
@@ -174,6 +176,13 @@ function calculatePrediction(homeTeam: string, awayTeam: string, sport: string) 
 
 type TabType = 'ai-picks' | 'my-picks';
 
+// The DB check constrains confidence to 1..5; UI paths report either 1..5
+// (local heuristic) or 0..100 (ensemble / Jev).
+function toDbConfidence(value: number): number {
+  if (value > 5) return Math.min(5, Math.max(1, Math.round(value / 20)));
+  return Math.min(5, Math.max(1, Math.round(value)));
+}
+
 interface PickModalData {
   game: LiveGame;
   prediction: {
@@ -212,6 +221,13 @@ export default function SportsPage() {
   
   // Enhanced predictions with real odds + ML ensemble
   const { predictions: enhancedPredictions, loading: predictionsLoading, refresh: refreshPredictions } = usePredictions(selectedSport);
+
+  // Jev top picks: OpenRouter research → Jev probabilities → +EV filter
+  const { result: jevResult, loading: jevLoading, error: jevError, run: runJev, reset: resetJev } = useTopPicks();
+
+  useEffect(() => {
+    resetJev();
+  }, [selectedSport, resetJev]);
 
   // Auto-settle picks when games have results
   useEffect(() => {
@@ -297,6 +313,68 @@ export default function SportsPage() {
     setErrorMessage(null);
   };
 
+  // ---- Jev Top Picks (OpenRouter research → Jev → value engine) ----
+  const jevGames: TopPickGame[] = enhancedPredictions.map(({ game }) => ({
+    id: game.id,
+    sport: game.sport,
+    homeTeam: game.homeTeam,
+    awayTeam: game.awayTeam,
+    gameTime: game.gameTime,
+    homeMoneyline: game.homeMoneyline,
+    awayMoneyline: game.awayMoneyline,
+    spread: game.spread,
+    total: game.total,
+  }));
+
+  const handleJevAnalyze = () => {
+    runJev(jevGames.slice(0, 8), { useResearch: true, limit: 5 });
+  };
+
+  const handleJevTakePick = (item: TopPick) => {
+    const { game, candidate, probabilities, rationale, research } = item;
+
+    setModalData({
+      game: {
+        id: game.id,
+        homeTeam: game.homeTeam,
+        awayTeam: game.awayTeam,
+        homeScore: 0,
+        awayScore: 0,
+        status: 'Scheduled',
+        period: '',
+        clock: '',
+        isLive: false,
+        gameTime: game.gameTime,
+        homeLogo: '',
+        awayLogo: '',
+        sport: game.sport,
+      },
+      prediction: {
+        pickTeam: candidate.side,
+        pickOdds: candidate.odds,
+        pickType: candidate.betType,
+        homeWinProb: Math.round(probabilities.homeWin * 1000) / 10,
+        awayWinProb: Math.round(probabilities.awayWin * 1000) / 10,
+        confidence: item.confidence,
+        edge: candidate.edge,
+        analyses: rationale,
+        recommendations: [
+          {
+            type: candidate.betType === 'moneyline' ? 'Moneyline' : candidate.betType === 'spread' ? 'Spread' : 'Total',
+            pick: candidate.selection,
+            reason: rationale[0] || research?.summary || 'Jev value recommendation',
+            odds: candidate.odds,
+            pickType: candidate.betType,
+            valueScore: Math.round(Math.min(5, Math.max(1, candidate.expectedValue * 20 + 3)) * 10),
+          },
+        ],
+      },
+      selectedRec: 0,
+    });
+    setStake('100');
+    setErrorMessage(null);
+  };
+
   const handleConfirmPick = async () => {
     if (!modalData) return;
     setIsSubmitting(true);
@@ -319,7 +397,7 @@ export default function SportsPage() {
       selection: rec.pick,
       odds: rec.odds,
       stake: stakeNum,
-      confidence: modalData.prediction.confidence,
+      confidence: toDbConfidence(modalData.prediction.confidence),
       notes: modalData.prediction.analyses[0],
       game_date: modalData.game.gameTime,
       match_id: modalData.game.id,
@@ -461,6 +539,180 @@ export default function SportsPage() {
                 {filter.label}
               </button>
             ))}
+          </div>
+
+          {/* Jev Top Picks - research + calibrated probabilities + EV */}
+          <div className="rounded-2xl border border-white/5 bg-surface-container-low/40 overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-tertiary/15 text-tertiary flex items-center justify-center">
+                  <Zap size={16} />
+                </div>
+                <div>
+                  <p className="font-['Space_Grotesk'] font-bold text-sm flex items-center gap-2">
+                    Jev Top Picks
+                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-tertiary/15 text-tertiary">
+                      OpenRouter + Jev
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-on-surface-variant">
+                    Research layer → Jev calibrated probabilities → +EV filter vs the book
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleJevAnalyze}
+                disabled={jevLoading || jevGames.length === 0}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all',
+                  jevGames.length === 0
+                    ? 'bg-surface-container-high text-on-surface-variant/50 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-tertiary to-tertiary/80 text-white shadow-lg shadow-tertiary/20 hover:shadow-tertiary/30 active:scale-[0.98]'
+                )}
+              >
+                {jevLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {jevLoading ? 'Analyzing…' : `Analyze ${jevGames.length} game${jevGames.length === 1 ? '' : 's'}`}
+              </button>
+            </div>
+
+            <div className="p-4">
+              {jevError && (
+                <p className="text-xs text-error/90 bg-error/10 border border-error/20 rounded-lg px-3 py-2">
+                  {jevError}
+                </p>
+              )}
+
+              {jevLoading && !jevResult && (
+                <div className="flex items-center gap-3 text-on-surface-variant text-sm">
+                  <Loader2 size={16} className="animate-spin text-tertiary" />
+                  Research model building game profiles, then Jev scoring every market…
+                </div>
+              )}
+
+              {!jevError && !jevLoading && !jevResult && (
+                <p className="text-xs text-on-surface-variant">
+                  Run the analysis to rank today&apos;s games by expected value. Each game costs ~$0.006 in research and
+                  ~$0.00002 in Jev scoring — nothing runs until you click.
+                </p>
+              )}
+
+              {jevResult && jevResult.picks.length === 0 && (
+                <p className="text-xs text-on-surface-variant">
+                  No bet cleared the +{(jevResult.minEv * 100).toFixed(0)}% EV threshold across{' '}
+                  {jevResult.analyzed} analyzed game{jevResult.analyzed === 1 ? '' : 's'}. The math says pass.
+                </p>
+              )}
+
+              {jevResult && jevResult.picks.length > 0 && (
+                <div className="space-y-3">
+                  {jevResult.picks.map((item) => {
+                    const { candidate } = item;
+                    const betLabel =
+                      candidate.betType === 'moneyline' ? 'Moneyline' : candidate.betType === 'spread' ? 'Spread' : 'Total';
+                    return (
+                      <div
+                        key={`${item.game.id}-${candidate.selection}`}
+                        className={cn(
+                          'rounded-xl border p-3.5 transition-colors',
+                          candidate.valueBet
+                            ? 'bg-tertiary/5 border-tertiary/30'
+                            : 'bg-surface-container-high/60 border-white/5'
+                        )}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span
+                                className={cn(
+                                  'text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded',
+                                  candidate.betType === 'moneyline'
+                                    ? 'bg-primary/15 text-primary'
+                                    : candidate.betType === 'spread'
+                                      ? 'bg-secondary/15 text-secondary'
+                                      : 'bg-tertiary/15 text-tertiary'
+                                )}
+                              >
+                                {betLabel}
+                              </span>
+                              <span className="text-[11px] text-on-surface-variant truncate">
+                                {item.game.awayTeam} @ {item.game.homeTeam}
+                              </span>
+                            </div>
+                            <p className="font-['Space_Grotesk'] font-black text-base flex items-center gap-2">
+                              {candidate.selection}
+                              <span className="text-sm text-on-surface-variant">{formatOdds(candidate.odds)}</span>
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] text-on-surface-variant">
+                              <span>
+                                Jev{' '}
+                                <span className="font-bold text-on-surface">
+                                  {(candidate.jevProbability * 100).toFixed(1)}%
+                                </span>
+                              </span>
+                              <span>
+                                Fair{' '}
+                                <span className="font-bold text-on-surface">
+                                  {(candidate.fairProbability * 100).toFixed(1)}%
+                                </span>
+                              </span>
+                              <span>
+                                Edge{' '}
+                                <span className={cn('font-bold', candidate.edge >= 0 ? 'text-tertiary' : 'text-error')}>
+                                  {candidate.edge >= 0 ? '+' : ''}
+                                  {candidate.edge.toFixed(1)}pts
+                                </span>
+                              </span>
+                              <span>
+                                Confidence <span className="font-bold text-on-surface">{item.confidence}</span>
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-2">
+                            <span
+                              className={cn(
+                                "font-['Space_Grotesk'] font-black text-lg",
+                                candidate.expectedValue >= 0 ? 'text-tertiary' : 'text-error'
+                              )}
+                            >
+                              {candidate.expectedValue >= 0 ? '+' : ''}
+                              {(candidate.expectedValue * 100).toFixed(1)}%
+                            </span>
+                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant -mt-1">
+                              Expected value
+                            </span>
+                            <button
+                              onClick={() => handleJevTakePick(item)}
+                              className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-tertiary to-tertiary/80 text-white text-[11px] font-bold uppercase tracking-wider shadow-lg shadow-tertiary/20 hover:shadow-tertiary/30 active:scale-[0.98] transition-all flex items-center gap-1.5"
+                            >
+                              <Bolt size={12} />
+                              Take Pick
+                            </button>
+                          </div>
+                        </div>
+
+                        <ul className="mt-3 space-y-1">
+                          {item.rationale.slice(0, 3).map((line, idx) => (
+                            <li key={idx} className="text-[11px] text-on-surface-variant flex gap-2">
+                              <span className="text-tertiary/70">›</span>
+                              <span className="min-w-0 flex-1">{line}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+
+                  <p className="text-[10px] text-on-surface-variant/80 pt-1">
+                    Models: {jevResult.models.jev}
+                    {jevResult.models.research ? ` · research ${jevResult.models.research}` : ''} · costs $
+                    {jevResult.costs.research.toFixed(4)} research + ${jevResult.costs.jev.toFixed(5)} Jev ·{' '}
+                    {jevResult.analyzed} game{jevResult.analyzed === 1 ? '' : 's'} analyzed · generated{' '}
+                    {new Date(jevResult.generatedAt).toLocaleTimeString()}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Games with AI Predictions - Grid Layout */}

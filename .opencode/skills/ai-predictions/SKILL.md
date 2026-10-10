@@ -32,12 +32,26 @@ Local, odds-only probability with +3% home advantage and a valueRating derived f
 
 ## Jev AI (TypeSafe System One via OpenRouter)
 
-- Server module: `src/lib/api/jev-predictions.ts` — calls the **OpenRouter Decisions API** (`POST https://openrouter.ai/api/alpha/decisions`, model `~typesafe/jev-latest`). It sends a `state` + typed `questions` (choice winner + noul edge) and maps the structured answers to a `JevPrediction` (pick, confidence, home/away probabilities, edge vs moneyline implied, EV). Jev returns **no generated text** — `reasoning`/`factors` are synthesized deterministically from the answers.
-- Route: `src/app/api/ai/predictions/route.ts` (POST) — keeps `OPENROUTER_API_KEY` **server-side** only. Never read it in a client component; the hook imports the types with `import type`.
-- Hook: `src/hooks/useAIPrediction.ts` — POSTs the `JevContext` (`{ homeTeam, awayTeam, sport, homeOdds, awayOdds, + Massey ratings/wins/losses }`) to `/api/ai/predictions` and returns the `JevPrediction`.
-- Requires `OPENROUTER_API_KEY` (server-side) — currently **empty** in `.env.local`, so the route returns 502 until set. Get one at https://openrouter.ai/keys.
-- Free/early-access pricing: output tokens free, input paid (typically < $0.00002/game), 32k context.
-- **Do not** call the Decisions API from the browser. If a page stops returning predictions, verify the key, then check the route responds at `/api/ai/predictions`.
+Requires `OPENROUTER_API_KEY` **server-side** (set in `.env.local`). Never read it in a client component; hooks import types with `import type`. Unauthenticated `/api/*` requests get a JSON **401** from `src/middleware.ts` (not a login redirect). Two endpoints:
+
+### Batch pipeline — `src/lib/api/jev-top-picks.ts` → `POST /api/ai/top-picks` → `useTopPicks.ts` (the main feature, "Jev Top Picks" on `/picks`)
+
+Three layers per game (max 12 games, 4 in parallel):
+
+1. **Research** — `POST /api/v1/chat/completions`, model `OPENROUTER_RESEARCH_MODEL` (default `anthropic/claude-sonnet-5`, ~$0.005–0.017/game, ~10s). Response often comes wrapped in ```` ```json ```` fences despite `response_format: json_object` → fences are stripped before `JSON.parse`. Failure is non-fatal (profile falls back to `null`).
+2. **Jev Decisions** — `POST https://openrouter.ai/api/alpha/decisions`, model `~typesafe/jev-latest` (resolves to `typesafe/jev-1.13-*`, ~$0.00004/req). `state` = market moneyline/spread/total + `team_ratings` (supabase **service role** query on ESPN-derived ratings) + research profile; `questions` = `winner` (choice), `situational_edge` (score −2..+2), `home_covers`/`total_over` (noul, only when odds quote a line). No generated text — rationale is assembled deterministically.
+3. **Value engine** — devig two-way moneyline (`devigTwoWay`), compare Jev prob vs fair → `edge` (pts), `expectedValue`, `valueBet` (`EV >= minEv` default **3%** and `p >= 0.5`); spreads/totals assumed −110 when the source omits the price (`oddsAssumed` flag). Ranked by EV, `limit` default 5.
+
+**Calibration gotcha:** Jev's `winner.probabilities` saturate to `0/1` whenever records/ratings separate the teams (instructions asking for 0.05–0.95 don't fix it). Layer 3 therefore blends: `p = fair + α·(p_jev − fair)` with `α = JEV_MARKET_SHRINK` (default **0.4**; `1` = raw Jev). `ValueCandidate.rawJevProbability` keeps the unblended value and the rationale prints the blend when it moves >1.5pts.
+
+Result: `TopPicksResult { picks, analyzed, gamesWithoutOdds, models, costs, minEv, shrink, generatedAt }`. Costs for one 3-game run with research ≈ **$0.016** (research) + $0.0001 (Jev).
+
+### Single game — `src/lib/api/jev-predictions.ts` → `POST /api/ai/predictions` → `useAIPrediction.ts`
+
+Older one-game endpoint with the same Decisions API. **No component currently calls it** (the `/picks` page uses the batch pipeline) — kept for reference.
+
+- Pricing (verified 2026-09): Decisions ~$0.00002–0.00004/request, chat research ~$0.006/call.
+- **Do not** call either API from the browser. If the page stops returning picks, check `OPENROUTER_API_KEY`, then `curl -X POST /api/ai/top-picks` with a session cookie.
 - Legacy: `src/lib/api/gemini-predictions.ts` (Gemini, `NEXT_PUBLIC_GEMINI_API_KEY`) is **no longer wired in** — kept as reference; delete when convenient.
 
 ## Feature data caveats

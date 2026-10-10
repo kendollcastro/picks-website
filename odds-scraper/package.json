@@ -1,0 +1,18 @@
+{
+  "name": "odds-scraper",
+  "version": "2.0.0",
+  "description": "Scrapes ESPN public odds/scores into Supabase for kcmpicks",
+  "scripts": {
+    "scrape": ".venv/bin/python3 scraper.py",
+    "scrape:today": ".venv/bin/python3 scraper.py --days-back 0 --days-ahead 1",
+    "scrape:dry": ".venv/bin/python3 scraper.py --dry-run",
+    "scrape:nba": ".venv/bin/python3 scraper.py --sport nba",
+    "scrape:nfl": ".venv/bin/python3 scraper.py --sport nfl",
+    "scrape:mlb": ".venv/bin/python3 scraper.py --sport mlb",
+    "scrape:nhl": ".venv/bin/python3 scraper.py --sport nhl",
+    "scrape:soccer": ".venv/bin/python3 scraper.py --sport soccer",
+    "scrape:college": ".venv/bin/python3 scraper.py --sport college-football",
+    "scrape:csv": ".venv/bin/python3 scraper.py --export-csv",
+    "list-leagues": ".venv/bin/python3 scraper.py --list-leagues"
+  }
+}

@@ -55,15 +55,10 @@ async function fetchOddsFromOddsPapi(sport: string): Promise<OddsGame[]> {
 
 // ============================================
 // FETCH ODDS FROM THE ODDS API (Fallback)
+// Goes through the server proxy (/api/odds) so the API key stays server-side
+// and responses are cached per sport.
 // ============================================
 async function fetchOddsFromTheOddsAPI(sport: string): Promise<OddsGame[]> {
-  const apiKey = process.env.NEXT_PUBLIC_ODDS_API_KEY;
-  
-  if (!apiKey) {
-    console.warn('No The Odds API key configured');
-    return [];
-  }
-
   const sportKeys: Record<string, string> = {
     nba: 'basketball_nba',
     nfl: 'americanfootball_nfl',
@@ -75,26 +70,19 @@ async function fetchOddsFromTheOddsAPI(sport: string): Promise<OddsGame[]> {
     'womens-basketball': 'basketball_wncaab',
   };
 
-  const sportKey = sportKeys[sport];
-  if (!sportKey) return [];
+  if (!sportKeys[sport]) return [];
 
   try {
-    const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`;
-    
-    const response = await fetch(url);
+    const response = await fetch(`/api/odds?sport=${sport}`, { cache: 'no-store' });
 
-    if (response.status === 401) {
-      console.warn('Odds API key is invalid or expired');
-      return [];
-    }
-    
+    if (response.status === 503) return []; // key not configured
     if (response.status === 429) {
-      console.warn('Odds API rate limit exceeded');
+      console.warn('Odds API rate limit reached (proxy)');
       return [];
     }
 
     if (!response.ok) {
-      console.error('Odds API error:', response.status, response.statusText);
+      console.error('Odds proxy error:', response.status, response.statusText);
       return [];
     }
 

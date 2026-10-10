@@ -414,22 +414,12 @@ async function fetchOdds(sport: string): Promise<GameOdds[]> {
   if (!sportKey) return getMockOdds(sport);
 
   try {
-    const apiKey = process.env.NEXT_PUBLIC_ODDS_API_KEY || '';
-    if (!apiKey) {
-      const papiGames = await fetchOddsPapiGames(sport);
-      if (papiGames.length > 0) return mapOddsPapiToGameOdds(papiGames);
-      console.warn('No odds data source configured, using mock odds');
-      return getMockOdds(sport);
-    }
-
-    const response = await fetch(
-      `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${apiKey}&regions=us,uk,eu&markets=h2h,spreads,totals,player_props&oddsFormat=american`
-    );
+    const response = await fetch(`/api/odds?sport=${sport}`, { cache: 'no-store' });
 
     if (!response.ok) {
       const papiGames = await fetchOddsPapiGames(sport);
       if (papiGames.length > 0) return mapOddsPapiToGameOdds(papiGames);
-      console.warn('Odds API error, using mock odds');
+      console.warn('Odds proxy error, using mock odds');
       return getMockOdds(sport);
     }
 
@@ -512,12 +502,7 @@ async function fetchEnhancedOdds(sport: string): Promise<EnhancedGameOdds[]> {
   if (!sportKey) return [];
 
   try {
-    const apiKey = process.env.NEXT_PUBLIC_ODDS_API_KEY || '';
-    if (!apiKey) return [];
-
-    const response = await fetch(
-      `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${apiKey}&regions=us,uk,eu&markets=h2h,spreads,totals&oddsFormat=american`
-    );
+    const response = await fetch(`/api/odds?sport=${sport}`, { cache: 'no-store' });
 
     if (!response.ok) return [];
 

@@ -10,8 +10,10 @@ export const API_CONFIG = {
   // ============================================
   ODDS_API: {
     BASE_URL: 'https://api.the-odds-api.com/v4',
-    KEY: process.env.NEXT_PUBLIC_ODDS_API_KEY || '',
-    FREE_LIMIT: 500, // requests per month
+    // Key is intentionally NOT exposed here (no NEXT_PUBLIC_). The app uses
+    // the /api/odds proxy with the server-side ODDS_API_KEY env var instead.
+    KEY: '',
+    FREE_LIMIT: 500, // credits per month
     SPORTS: {
       nba: 'basketball_nba',
       nfl: 'americanfootball_nfl',
