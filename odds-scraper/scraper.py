@@ -91,7 +91,7 @@ LEAGUES: Dict[str, Dict[str, str]] = {
     "serie-a": {"path": "soccer/ita.1", "sport": "soccer"},
     "bundesliga": {"path": "soccer/ger.1", "sport": "soccer"},
     "ligue-1": {"path": "soccer/fra.1", "sport": "soccer"},
-    "mls": {"path": "soccer/usa.1", "sport": "mls"},
+    "mls": {"path": "soccer/usa.1", "sport": "soccer"},
     "liga-mx": {"path": "soccer/mex.1", "sport": "soccer"},
     "ucl": {"path": "soccer/uefa.champions", "sport": "soccer"},
 }
