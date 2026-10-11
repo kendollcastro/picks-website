@@ -167,9 +167,19 @@ function parseMasseyHTML(html: string, sport: string, _leagueName: string): Team
 // ============================================
 // FETCH TEAM RATING FROM DATABASE
 // ============================================
+// In-memory cache: the predictions hook resolves ratings for every team in
+// the slate on each fetch; without this, each sport switch fires ~120
+// identical Supabase lookups.
+const ratingCache = new Map<string, { rating: TeamRating | null; at: number }>();
+const RATING_CACHE_TTL_MS = 10 * 60 * 1000;
+
 export async function getTeamRating(sport: string, teamName: string): Promise<TeamRating | null> {
+  const key = `${sport}|${teamName.toLowerCase()}`;
+  const hit = ratingCache.get(key);
+  if (hit && Date.now() - hit.at <= RATING_CACHE_TTL_MS) return hit.rating;
+
   const supabase = createClient();
-  
+
   try {
     const { data, error } = await supabase
       .from('team_ratings')
@@ -179,9 +189,10 @@ export async function getTeamRating(sport: string, teamName: string): Promise<Te
       .order('rank', { ascending: true })
       .limit(1)
       .single();
-    
-    if (error) return null;
-    return data;
+
+    const rating = error ? null : (data as TeamRating);
+    ratingCache.set(key, { rating, at: Date.now() });
+    return rating;
   } catch {
     return null;
   }

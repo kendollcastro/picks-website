@@ -6,7 +6,9 @@
 // ============================================
 
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import { generateTopPicks, type TopPickGame } from '@/lib/api/jev-top-picks';
+import { recordTopPicks, settlePendingTopPicks, getModelRecord } from '@/lib/api/top-picks-settle';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +53,10 @@ function parseGame(raw: unknown): TopPickGame | null {
     underOdds: numberOrUndefined(g.underOdds),
     venue: typeof g.venue === 'string' ? g.venue : undefined,
     provider: typeof g.provider === 'string' ? g.provider : undefined,
+    homeLogo: typeof g.homeLogo === 'string' ? g.homeLogo : undefined,
+    awayLogo: typeof g.awayLogo === 'string' ? g.awayLogo : undefined,
+    homeAbbr: typeof g.homeAbbr === 'string' ? g.homeAbbr : undefined,
+    awayAbbr: typeof g.awayAbbr === 'string' ? g.awayAbbr : undefined,
   };
 }
 
@@ -91,5 +97,38 @@ export async function POST(request: Request) {
     minEv: typeof body.minEv === 'number' ? body.minEv : undefined,
   });
 
+  // Persist model bets + settle any now-final games, for win-rate tracking.
+  // Fire-and-forget: tracking must never fail the pick response.
+  const runId = randomUUID();
+  if (result.allPicks.length > 0) {
+    void recordTopPicks(result.allPicks, {
+      runId,
+      researchModel: result.models.research,
+      jevModel: result.models.jev,
+    }).catch((err) => console.error('[top-picks] record failed:', err));
+  }
+  void settlePendingTopPicks().catch((err) =>
+    console.error('[top-picks] settle failed:', err)
+  );
+
   return NextResponse.json(result);
+}
+
+// GET /api/ai/top-picks → settle any pending picks, then return the model's
+// running record (win-rate, ROI, calibration) from the `top_picks` table.
+export async function GET() {
+  const settle = await settlePendingTopPicks().catch((err) => {
+    console.error('[top-picks] settle failed:', err);
+    return null;
+  });
+  const record = await getModelRecord().catch((err) => {
+    console.error('[top-picks] record failed:', err);
+    return null;
+  });
+
+  return NextResponse.json({
+    record,
+    lastSettle: settle?.summary ?? null,
+    error: settle?.error ?? null,
+  });
 }

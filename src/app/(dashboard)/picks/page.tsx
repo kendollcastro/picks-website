@@ -7,6 +7,7 @@ import { useLiveData, type LiveGame } from '@/hooks/useLiveData';
 import { usePicks, type CreatePickInput } from '@/hooks/usePicks';
 import { usePredictions } from '@/hooks/usePredictions';
 import { useTopPicks } from '@/hooks/useTopPicks';
+import { useTopPickRecord } from '@/hooks/useTopPickRecord';
 import type { TopPick, TopPickGame } from '@/lib/api/jev-top-picks';
 import {
   RefreshCw,
@@ -224,12 +225,15 @@ export default function SportsPage() {
 
   // Jev top picks: OpenRouter research → Jev probabilities → +EV filter
   const { result: jevResult, loading: jevLoading, error: jevError, run: runJev, reset: resetJev } = useTopPicks();
+  // Model's running win-rate / ROI (settled against final game scores).
+  const { data: recordData, loading: recordLoading, refresh: refreshRecord } = useTopPickRecord();
 
   useEffect(() => {
     resetJev();
   }, [selectedSport, resetJev]);
 
-  // Auto-settle picks when games have results
+  // Auto-settle USER picks (My Picks tab) when today's ESPN games finalize.
+  // Works via the /api/espn/scoreboard proxy (direct ESPN calls were CORS-blocked).
   useEffect(() => {
     if (games.length > 0) {
       const gamesData: Record<string, { homeScore: number; awayScore: number; status: string; homeTeam: string; awayTeam: string; isLive: boolean }> = {};
@@ -270,7 +274,7 @@ export default function SportsPage() {
     setErrorMessage(null);
   };
 
-  const handleEnhancedPick = (item: { game: { id: string; homeTeam: string; awayTeam: string; homeMoneyline?: number; awayMoneyline?: number; sport: string; gameTime: string }; prediction: { pickType?: string; pickString: string; pickOdds: number; confidence: number; edge: number; analyses: string[]; homeWinProb?: number; awayWinProb?: number; valueRating?: number } }) => {
+  const handleEnhancedPick = (item: { game: { id: string; homeTeam: string; awayTeam: string; homeMoneyline?: number; awayMoneyline?: number; sport: string; gameTime: string; homeLogo?: string | null; awayLogo?: string | null }; prediction: { pickType?: string; pickString: string; pickOdds: number; confidence: number; edge: number; analyses: string[]; homeWinProb?: number; awayWinProb?: number; valueRating?: number } }) => {
     const prediction = {
       pickTeam: item.prediction.pickString,
       pickOdds: item.prediction.pickOdds || -110,
@@ -302,8 +306,8 @@ export default function SportsPage() {
         clock: '',
         isLive: false,
         gameTime: item.game.gameTime,
-        homeLogo: '',
-        awayLogo: '',
+        homeLogo: item.game.homeLogo || '',
+        awayLogo: item.game.awayLogo || '',
         sport: item.game.sport,
       },
       prediction,
@@ -314,27 +318,37 @@ export default function SportsPage() {
   };
 
   // ---- Jev Top Picks (OpenRouter research → Jev → value engine) ----
-  const jevGames: TopPickGame[] = enhancedPredictions.map(({ game }) => ({
-    id: game.id,
-    sport: game.sport,
-    homeTeam: game.homeTeam,
-    awayTeam: game.awayTeam,
-    gameTime: game.gameTime,
-    homeMoneyline: game.homeMoneyline,
-    awayMoneyline: game.awayMoneyline,
-    drawMoneyline: game.drawMoneyline,
-    spread: game.spread,
-    total: game.total,
-    spreadOdds: game.spreadOdds,
-    awaySpreadOdds: game.awaySpreadOdds,
-    totalOdds: game.totalOdds,
-    underOdds: game.underOdds,
-    venue: game.venue,
-    provider: game.bookmaker,
-  }));
+  // Cap at 8 soonest games with real odds; the button count must match
+  // what we actually send (was labeling 60+ games but analyzing 8).
+  const jevGames: TopPickGame[] = enhancedPredictions
+    .map(({ game }) => ({
+      id: game.id,
+      sport: game.sport,
+      homeTeam: game.homeTeam,
+      awayTeam: game.awayTeam,
+      gameTime: game.gameTime,
+      homeMoneyline: game.homeMoneyline,
+      awayMoneyline: game.awayMoneyline,
+      drawMoneyline: game.drawMoneyline,
+      spread: game.spread,
+      total: game.total,
+      spreadOdds: game.spreadOdds,
+      awaySpreadOdds: game.awaySpreadOdds,
+      totalOdds: game.totalOdds,
+      underOdds: game.underOdds,
+      venue: game.venue,
+      provider: game.bookmaker,
+      homeLogo: game.homeLogo,
+      awayLogo: game.awayLogo,
+      homeAbbr: game.homeAbbr,
+      awayAbbr: game.awayAbbr,
+    }))
+    .slice(0, 8);
 
-  const handleJevAnalyze = () => {
-    runJev(jevGames.slice(0, 8), { useResearch: true, limit: 5 });
+  const handleJevAnalyze = async () => {
+    await runJev(jevGames, { useResearch: true, limit: 5 });
+    // Picks were persisted server-side; refresh the running record.
+    void refreshRecord();
   };
 
   const handleJevTakePick = (item: TopPick) => {
@@ -352,8 +366,8 @@ export default function SportsPage() {
         clock: '',
         isLive: false,
         gameTime: game.gameTime,
-        homeLogo: '',
-        awayLogo: '',
+        homeLogo: game.homeLogo || '',
+        awayLogo: game.awayLogo || '',
         sport: game.sport,
       },
       prediction: {
@@ -582,6 +596,58 @@ export default function SportsPage() {
               </button>
             </div>
 
+            {/* Model record — real win-rate / ROI from settled bets */}
+            {(() => {
+              const rec = recordData?.record;
+              const graded = rec?.graded ?? 0;
+              const showEmpty = !recordLoading && (!rec || graded === 0);
+              const showData = !recordLoading && rec && graded > 0;
+              const winRate = rec?.winRate ?? 0;
+              const roi = rec?.roi ?? 0;
+              return (
+                <div className="px-4 py-2.5 border-b border-white/5 bg-surface-container-low/30">
+                  {showEmpty && (
+                    <p className="text-[11px] text-on-surface-variant">
+                      Model record is empty — settled bets will build win-rate, ROI and calibration here.
+                    </p>
+                  )}
+                  {showData && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
+                      <span className="font-bold uppercase tracking-wider text-on-surface-variant">Model record</span>
+                      <span className="text-on-surface-variant">
+                        <span className="font-bold text-on-surface">{rec!.won}-{rec!.lost}</span>
+                        {rec!.push > 0 ? ` (${rec!.push}p)` : ''}
+                      </span>
+                      <span className="text-on-surface-variant">
+                        Win rate <span className={cn('font-bold', winRate >= 0.5 ? 'text-tertiary' : 'text-on-surface')}>{(winRate * 100).toFixed(1)}%</span>
+                      </span>
+                      <span className="text-on-surface-variant">
+                        ROI <span className={cn('font-bold', roi >= 0 ? 'text-tertiary' : 'text-error')}>{roi >= 0 ? '+' : ''}{roi.toFixed(1)}%</span>
+                      </span>
+                      {rec!.avgProb != null && (
+                        <span className="text-on-surface-variant">
+                          Avg prob <span className="font-bold text-on-surface">{(rec!.avgProb * 100).toFixed(1)}%</span>
+                        </span>
+                      )}
+                      {rec!.avgEdge != null && (
+                        <span className="text-on-surface-variant">
+                          Avg edge <span className="font-bold text-on-surface">{rec!.avgEdge >= 0 ? '+' : ''}{rec!.avgEdge.toFixed(1)}pts</span>
+                        </span>
+                      )}
+                      {rec!.lastUpdated && (
+                        <span className="text-on-surface-variant/70 ml-auto">
+                          settled {new Date(rec!.lastUpdated).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {recordLoading && (
+                    <p className="text-[11px] text-on-surface-variant">Loading model record…</p>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="p-4">
               {jevError && (
                 <p className="text-xs text-error/90 bg-error/10 border border-error/20 rounded-lg px-3 py-2">
@@ -641,8 +707,16 @@ export default function SportsPage() {
                               >
                                 {betLabel}
                               </span>
-                              <span className="text-[11px] text-on-surface-variant truncate">
-                                {item.game.awayTeam} @ {item.game.homeTeam}
+                              <span className="flex items-center gap-1.5 text-[11px] text-on-surface-variant truncate min-w-0">
+                                {item.game.awayLogo ? (
+                                  <Image unoptimized src={item.game.awayLogo} alt={item.game.awayTeam} width={14} height={14} className="w-3.5 h-3.5 object-contain shrink-0" />
+                                ) : null}
+                                <span className="truncate">{item.game.awayTeam}</span>
+                                <span className="shrink-0">@</span>
+                                {item.game.homeLogo ? (
+                                  <Image unoptimized src={item.game.homeLogo} alt={item.game.homeTeam} width={14} height={14} className="w-3.5 h-3.5 object-contain shrink-0" />
+                                ) : null}
+                                <span className="truncate">{item.game.homeTeam}</span>
                               </span>
                             </div>
                             <p className="font-['Space_Grotesk'] font-black text-base flex items-center gap-2">
@@ -821,10 +895,18 @@ export default function SportsPage() {
                   {/* Hero Pick Card */}
                   <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl p-5 border border-primary/20">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-readable-sm text-on-surface-variant">
-                        {modalData.game.awayTeam} @ {modalData.game.homeTeam}
+                      <span className="flex items-center gap-1.5 text-readable-sm text-on-surface-variant min-w-0">
+                        {modalData.game.awayLogo ? (
+                          <Image unoptimized src={modalData.game.awayLogo} alt={modalData.game.awayTeam} width={16} height={16} className="w-4 h-4 object-contain shrink-0" />
+                        ) : null}
+                        <span className="truncate">{modalData.game.awayTeam}</span>
+                        <span className="shrink-0">@</span>
+                        {modalData.game.homeLogo ? (
+                          <Image unoptimized src={modalData.game.homeLogo} alt={modalData.game.homeTeam} width={16} height={16} className="w-4 h-4 object-contain shrink-0" />
+                        ) : null}
+                        <span className="truncate">{modalData.game.homeTeam}</span>
                       </span>
-                      <span className="px-3 py-1 rounded-full bg-tertiary/20 text-tertiary text-xs font-bold flex items-center gap-1">
+                      <span className="px-3 py-1 rounded-full bg-tertiary/20 text-tertiary text-xs font-bold flex items-center gap-1 shrink-0">
                         <TrendingUp size={12} />
                         +{modalData.prediction.edge.toFixed(1)}% Edge
                       </span>
@@ -1198,7 +1280,7 @@ function EnhancedAIPredictionCard({
   prediction,
   onTakePick,
 }: {
-  game: { id: string; homeTeam: string; awayTeam: string; homeMoneyline?: number; awayMoneyline?: number; sport: string; gameTime: string };
+  game: { id: string; homeTeam: string; awayTeam: string; homeMoneyline?: number; awayMoneyline?: number; sport: string; gameTime: string; homeLogo?: string | null; awayLogo?: string | null };
   prediction: {
     pickTeam: string;
     pickString: string;
@@ -1240,8 +1322,12 @@ function EnhancedAIPredictionCard({
         <div className="flex items-center justify-between mb-3">
           {/* Away Team */}
           <div className="flex-1 flex flex-col items-center min-w-0">
-            <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center mb-2 text-sm font-black text-on-surface-variant uppercase">
-              {game.awayTeam.substring(0, 3)}
+            <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center mb-2 text-sm font-black text-on-surface-variant uppercase overflow-hidden">
+              {game.awayLogo ? (
+                <Image unoptimized src={game.awayLogo} alt={game.awayTeam} width={32} height={32} className="w-8 h-8 object-contain" />
+              ) : (
+                <span className="truncate">{game.awayTeam.substring(0, 3)}</span>
+              )}
             </div>
             <p className="font-semibold text-xs text-center w-full px-1 truncate">{game.awayTeam}</p>
           </div>
@@ -1252,8 +1338,12 @@ function EnhancedAIPredictionCard({
 
           {/* Home Team */}
           <div className="flex-1 flex flex-col items-center min-w-0">
-            <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center mb-2 text-sm font-black text-on-surface-variant uppercase">
-              {game.homeTeam.substring(0, 3)}
+            <div className="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center mb-2 text-sm font-black text-on-surface-variant uppercase overflow-hidden">
+              {game.homeLogo ? (
+                <Image unoptimized src={game.homeLogo} alt={game.homeTeam} width={32} height={32} className="w-8 h-8 object-contain" />
+              ) : (
+                <span className="truncate">{game.homeTeam.substring(0, 3)}</span>
+              )}
             </div>
             <p className="font-semibold text-xs text-center w-full px-1 truncate">{game.homeTeam}</p>
           </div>

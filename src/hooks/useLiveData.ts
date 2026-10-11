@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { isGameToday, isGameInFuture } from '@/lib/utils';
 import { fetchOddsPapiGames } from '@/lib/api/oddspapi';
 
@@ -302,80 +302,36 @@ function getMockOdds(sport: string): GameOdds[] {
 
 // ============================================
 // ESPN FREE API SERVICE
+// Fetched through our own /api/espn/scoreboard proxy — direct browser
+// calls to site.api.espn.com are CORS-blocked, which left this hook
+// permanently empty (and the UI showing "no games" or stale data).
 // ============================================
 async function fetchESPNScores(sport: string): Promise<LiveGame[]> {
-  const sportPaths: Record<string, string> = {
-    nba: 'basketball/nba',
-    nfl: 'football/nfl',
-    mlb: 'baseball/mlb',
-    soccer: 'soccer/eng.1',
-    ufc: 'mma/ufc',
-    'college-football': 'football/college-football',
-    'college-basketball': 'basketball/mens-college-basketball',
-    'womens-basketball': 'basketball/wnba',
-  };
-
-  const sportPath = sportPaths[sport];
-  if (!sportPath) return getMockGames(sport);
+  const knownSports = new Set([
+    'nba',
+    'nfl',
+    'mlb',
+    'soccer',
+    'ufc',
+    'college-football',
+    'college-basketball',
+    'womens-basketball',
+  ]);
+  if (!knownSports.has(sport)) return [];
 
   try {
-    const response = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/${sportPath}/scoreboard`,
-      { cache: 'no-store' }
-    );
-
-    if (!response.ok) {
-      console.warn('ESPN API error, using mock data');
-      return getMockGames(sport);
-    }
-
-    const data = await response.json();
-
-    if (!data.events || data.events.length === 0) {
-      // No games today, use mock data
-      return getMockGames(sport);
-    }
-
-    return data.events.map((event: {
-      id: string;
-      date: string;
-      competitions: Array<{
-        competitors: Array<{
-          homeAway: string;
-          team: { displayName: string; logo?: string };
-          score?: string;
-        }>;
-        status?: {
-          type?: { state?: string; description?: string; detail?: string };
-          displayClock?: string;
-          period?: number;
-        };
-      }>;
-    }) => {
-      const comp = event.competitions[0];
-      const home = comp?.competitors?.find((c) => c.homeAway === 'home');
-      const away = comp?.competitors?.find((c) => c.homeAway === 'away');
-      const statusType = comp?.status?.type;
-      const isLive = statusType?.state === 'in';
-
-      return {
-        id: event.id,
-        sport,
-        homeTeam: home?.team?.displayName || 'TBD',
-        awayTeam: away?.team?.displayName || 'TBD',
-        homeScore: home?.score ? parseInt(home.score) : 0,
-        awayScore: away?.score ? parseInt(away.score) : 0,
-        status: statusType?.description || 'Scheduled',
-        period: statusType?.detail || '',
-        clock: comp?.status?.displayClock || '',
-        isLive,
-        gameTime: event.date,
-        homeLogo: home?.team?.logo || '',
-        awayLogo: away?.team?.logo || '',
-      };
+    const response = await fetch(`/api/espn/scoreboard?sport=${sport}`, {
+      cache: 'no-store',
     });
+    if (!response.ok) {
+      console.warn('ESPN proxy error:', response.status);
+      return [];
+    }
+
+    const data = (await response.json()) as { games?: LiveGame[] };
+    return Array.isArray(data.games) ? data.games : [];
   } catch (error) {
-    console.error('ESPN fetch error:', error);
+    console.error('ESPN proxy fetch error:', error);
     return [];
   }
 }
@@ -683,29 +639,37 @@ async function fetchHistoricalOdds(sport: string, daysBack: number = 30): Promis
 export function useLiveData(sport: string = 'nba') {
   const [games, setGames] = useState<LiveGame[]>([]);
   const [loading, setLoading] = useState(true);
+  // Ignore out-of-order responses when the user switches sports quickly.
+  const fetchIdRef = useRef(0);
 
   const fetchGames = useCallback(async () => {
+    const fetchId = ++fetchIdRef.current;
     try {
       setLoading(true);
       const data = await fetchESPNScores(sport);
+      if (fetchId !== fetchIdRef.current) return;
       // Filter to only show today's games (including live)
-      const todaysGames = data.filter((game) => 
+      const todaysGames = data.filter((game) =>
         isGameToday(game.gameTime) || game.isLive
       );
       setGames(todaysGames);
     } finally {
-      setLoading(false);
+      if (fetchId === fetchIdRef.current) setLoading(false);
     }
   }, [sport]);
 
   useEffect(() => {
+    // Drop the previous sport's cards immediately while the new slate loads.
+    setGames([]);
     fetchGames();
   }, [fetchGames]);
 
   useEffect(() => {
     const interval = setInterval(() => {
+      const fetchId = ++fetchIdRef.current;
       fetchESPNScores(sport).then((data) => {
-        const todaysGames = data.filter((game) => 
+        if (fetchId !== fetchIdRef.current) return;
+        const todaysGames = data.filter((game) =>
           isGameToday(game.gameTime) || game.isLive
         );
         setGames(todaysGames);

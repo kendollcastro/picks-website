@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getTeamRating } from '@/lib/api/massey-ratings';
 import { fetchOddsPapiGames } from '@/lib/api/oddspapi';
 import { fetchScrapedGames } from '@/lib/api/games';
@@ -37,6 +37,10 @@ interface OddsGame {
   /** Soccer 1X2 draw price when the source quotes a three-way market. */
   drawMoneyline?: number;
   venue?: string;
+  homeLogo?: string | null;
+  awayLogo?: string | null;
+  homeAbbr?: string | null;
+  awayAbbr?: string | null;
   bookmaker: string;
   gameTime: string;
   status?: string;
@@ -81,6 +85,10 @@ async function fetchFromScrapedFeed(sport: string): Promise<OddsGame[]> {
         underOdds: g.underOdds ?? undefined,
         drawMoneyline: g.drawMoneyline ?? undefined,
         venue: g.venue ?? undefined,
+        homeLogo: g.homeLogo,
+        awayLogo: g.awayLogo,
+        homeAbbr: g.homeAbbr,
+        awayAbbr: g.awayAbbr,
         bookmaker: g.provider || 'ESPN',
         gameTime: g.gameTime as string,
         status: g.status,
@@ -228,8 +236,13 @@ export function usePredictions(sport: string = 'nba') {
   const [predictions, setPredictions] = useState<PredictionWithGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Monotonic fetch id: when the user switches sports mid-flight, an older
+  // response must not overwrite the newer sport's games (that's how NFL
+  // cards ended up under the NBA tab).
+  const fetchIdRef = useRef(0);
 
   const fetchPredictions = useCallback(async () => {
+    const fetchId = ++fetchIdRef.current;
     setLoading(true);
     setError(null);
 
@@ -239,17 +252,23 @@ export function usePredictions(sport: string = 'nba') {
       let oddsGames = await fetchFromScrapedFeed(sport);
       let source = 'scraped';
 
+      if (fetchId !== fetchIdRef.current) return; // sport changed — discard
+
       if (oddsGames.length === 0) {
         console.log('Scraped feed empty, trying OddsPapi...');
         oddsGames = await fetchOddsFromOddsPapi(sport);
         source = 'oddspapi';
       }
 
+      if (fetchId !== fetchIdRef.current) return;
+
       if (oddsGames.length === 0) {
         console.log('OddsPapi returned no data, trying The Odds API...');
         oddsGames = await fetchOddsFromTheOddsAPI(sport);
         source = 'the-odds-api';
       }
+
+      if (fetchId !== fetchIdRef.current) return;
 
       // If no API data, use fallback
       if (oddsGames.length === 0) {
@@ -319,17 +338,22 @@ export function usePredictions(sport: string = 'nba') {
 
       // Sort by value/edge (best picks first)
       results.sort((a, b) => b.rawPrediction.edge - a.rawPrediction.edge);
-      
+
+      if (fetchId !== fetchIdRef.current) return;
       setPredictions(results);
     } catch (err) {
+      if (fetchId !== fetchIdRef.current) return;
       console.error('Error generating predictions:', err);
       setError('Failed to generate predictions');
     } finally {
-      setLoading(false);
+      if (fetchId === fetchIdRef.current) setLoading(false);
     }
   }, [sport]);
 
   useEffect(() => {
+    // Clear stale cards from the previous sport immediately so the grid
+    // never shows another sport's games while the new slate loads.
+    setPredictions([]);
     fetchPredictions();
   }, [fetchPredictions]);
 

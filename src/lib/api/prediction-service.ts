@@ -210,10 +210,15 @@ function predictML(
   // Base from odds
   const fair = removeVig(homeOdds, awayOdds);
   features.impliedProb = fair.home;
-  
+
   // Team name features (seed-based for consistency)
   features.homeSeed = (homeTeam.charCodeAt(0) + homeTeam.length) % 10 / 10;
   features.awaySeed = (awayTeam.charCodeAt(0) + awayTeam.length) % 10 / 10;
+
+  // Home-court prior (weighted below); the +0.03 add after the weighted
+  // sum used to reference an undefined feature, which made the whole ML
+  // model NaN and poisoned the ensemble (NaN win probabilities).
+  features.homeAdvantage = 0;
   
   // Sport-specific factors
   if (sport === 'nba') {
@@ -283,6 +288,21 @@ function createEnsemble(
   statsModel: StatsPrediction,
   mlModel: MLPrediction
 ): EnsemblePrediction {
+  // Guard against a poisoned sub-model: fall back to market-only weights.
+  if (
+    !Number.isFinite(oddsModel.homeProb) ||
+    !Number.isFinite(statsModel.homeProb) ||
+    !Number.isFinite(mlModel.homeProb)
+  ) {
+    return {
+      homeProb: Number.isFinite(oddsModel.homeProb) ? oddsModel.homeProb : 50,
+      awayProb: Number.isFinite(oddsModel.awayProb) ? oddsModel.awayProb : 50,
+      confidence: 0,
+      modelWeights: { odds: 1, stats: 0, ml: 0 },
+      consensus: 'uncertain',
+    };
+  }
+
   // Dynamic weights based on model confidence
   const totalConfidence = oddsModel.edge + statsModel.formRating + mlModel.confidence;
   

@@ -60,6 +60,11 @@ export interface TopPickGame {
   venue?: string;
   /** Sportsbook the line came from, e.g. "DraftKings". */
   provider?: string;
+  /** Team logo URLs (scraped feed provides them via ESPN). */
+  homeLogo?: string | null;
+  awayLogo?: string | null;
+  homeAbbr?: string | null;
+  awayAbbr?: string | null;
 }
 
 export interface ResearchProfile {
@@ -95,7 +100,17 @@ export interface ValueCandidate {
 }
 
 export interface TopPick {
-  game: { id: string; sport: string; homeTeam: string; awayTeam: string; gameTime: string };
+  game: {
+    id: string;
+    sport: string;
+    homeTeam: string;
+    awayTeam: string;
+    gameTime: string;
+    homeLogo?: string | null;
+    awayLogo?: string | null;
+    homeAbbr?: string | null;
+    awayAbbr?: string | null;
+  };
   candidate: ValueCandidate;
   confidence: number;
   probabilities: { homeWin: number; awayWin: number; homeCovers?: number; overProb?: number };
@@ -106,6 +121,13 @@ export interface TopPick {
 
 export interface TopPicksResult {
   picks: TopPick[];
+  /**
+   * Every model bet generated this run (one per analyzed game — the top
+   * candidate by EV, before the minEv value-bet filter). Persisted to the
+   * `top_picks` table so we measure model calibration on all predictions,
+   * not only the ones that cleared the +EV threshold.
+   */
+  allPicks: TopPick[];
   analyzed: number;
   gamesWithoutOdds: number;
   models: { research: string | null; jev: string };
@@ -895,6 +917,10 @@ export async function generateTopPicks(
           homeTeam: game.homeTeam,
           awayTeam: game.awayTeam,
           gameTime: game.gameTime,
+          homeLogo: game.homeLogo,
+          awayLogo: game.awayLogo,
+          homeAbbr: game.homeAbbr,
+          awayAbbr: game.awayAbbr,
         },
         candidate: best,
         confidence,
@@ -907,14 +933,21 @@ export async function generateTopPicks(
     };
   });
 
-  const successful = analyzed.filter((x): x is { pick: TopPick; jevModel: string } => x !== null);
-  const picks = successful
+  const successful = analyzed.flatMap((x) => (x ? [x] : []));
+
+  // Best model bet per game (top candidate by EV), before the minEv filter.
+  // This is what we persist for calibration — measured on every prediction,
+  // not only the ones that cleared the value threshold.
+  const allPicks = successful
     .map((x) => x.pick)
-    .sort((a, b) => b.candidate.expectedValue - a.candidate.expectedValue)
-    .slice(0, limit);
+    .sort((a, b) => b.candidate.expectedValue - a.candidate.expectedValue);
+
+  // Returned bets: only those that cleared the +EV threshold.
+  const picks = allPicks.filter((p) => p.candidate.valueBet).slice(0, limit);
 
   return {
     picks,
+    allPicks,
     analyzed: successful.length,
     gamesWithoutOdds: games.length - validGames.length,
     models: {
