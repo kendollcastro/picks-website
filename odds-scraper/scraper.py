@@ -253,13 +253,28 @@ def normalize_event(
     status_type = (event.get("status") or {}).get("type") or {}
     status = map_status(status_type.get("name"))
 
+    commence = event.get("date")
+
+    # Auto-finalize: ESPN's daily scoreboard occasionally still lists a game
+    # from a previous day whose status never flipped to `post` (rained out of
+    # the feed, delayed status sync, etc.). If the start time is already in
+    # the past but we still read `scheduled`, force it to `post` with no
+    # score so downstream consumers (the picks slate) never treat a stale
+    # pre-game row as "upcoming".
+    if status == "scheduled" and commence:
+        try:
+            commence_dt = datetime.fromisoformat(commence.replace("Z", "+00:00"))
+            if commence_dt < datetime.now(timezone.utc):
+                status = "post"
+        except ValueError:
+            pass
+
     # ESPN reports "0" for games that haven't started; keep scores null until live/post.
     if status == "scheduled":
         home["score"] = None
         away["score"] = None
 
     venue = (comp.get("venue") or {}).get("displayName")
-    commence = event.get("date")
 
     # Odds live on the competition; may be [null] once a game is final.
     odds_list = comp.get("odds") or []

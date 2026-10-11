@@ -251,9 +251,15 @@ export default function SportsPage() {
     }
   }, [games, settlePicks]);
 
-  const liveGames = games.filter(g => g.isLive);
-  const upcomingGames = games.filter(g => !g.isLive && g.status !== 'Final');
-  const nonFinalGames = games.filter(g => g.status !== 'Final');
+  // The AI-picks grid renders `enhancedPredictions` (upcoming games from the
+  // scraped feed, `gameTime > now`). Drive the All/Live/Upcoming counts from
+  // that same source so the header never disagrees with the cards shown.
+  // The scraped feed only returns pre-game rows, so "live" is derived from an
+  // in-progress status if the source ever marks one; otherwise everything is upcoming.
+  const predictionGames = enhancedPredictions.map((p) => p.game);
+  const liveGames = predictionGames.filter((g) => g.status === 'in');
+  const upcomingGames = predictionGames.filter((g) => g.status !== 'in');
+  const nonFinalGames = predictionGames;
 
   const filteredGames = gameFilter === 'live' ? liveGames :
     gameFilter === 'upcoming' ? upcomingGames : nonFinalGames;
@@ -265,8 +271,24 @@ export default function SportsPage() {
   });
 
   const handleTakePick = (game: typeof gamesWithPredictions[0]) => {
+    // The legacy fallback grid is built from scraped OddsGame rows, which lack
+    // the live-score fields LiveGame requires. Adapt with sensible defaults.
     setModalData({
-      game,
+      game: {
+        id: game.id,
+        sport: game.sport,
+        homeTeam: game.homeTeam,
+        awayTeam: game.awayTeam,
+        homeScore: 0,
+        awayScore: 0,
+        status: game.status || 'Scheduled',
+        period: '',
+        clock: '',
+        isLive: false,
+        gameTime: game.gameTime,
+        homeLogo: game.homeLogo || '',
+        awayLogo: game.awayLogo || '',
+      },
       prediction: game.prediction,
       selectedRec: 0,
     });
@@ -837,7 +859,21 @@ export default function SportsPage() {
               gamesWithPredictions.map((game) => (
                 <AIPredictionCard
                   key={game.id}
-                  game={game}
+                  game={{
+                    id: game.id,
+                    sport: game.sport,
+                    homeTeam: game.homeTeam,
+                    awayTeam: game.awayTeam,
+                    homeScore: 0,
+                    awayScore: 0,
+                    status: game.status || 'Scheduled',
+                    period: '',
+                    clock: '',
+                    isLive: false,
+                    gameTime: game.gameTime,
+                    homeLogo: game.homeLogo || '',
+                    awayLogo: game.awayLogo || '',
+                  }}
                   prediction={game.prediction}
                   onTakePick={() => handleTakePick(game)}
                 />

@@ -59,7 +59,19 @@ interface PredictionWithGame {
 // ============================================
 async function fetchFromScrapedFeed(sport: string): Promise<OddsGame[]> {
   try {
-    const games = await fetchScrapedGames({ sport, status: 'scheduled', limit: 60 });
+    // Bound the window server-side to today's slate onward. Without this, the
+    // feed returns `scheduled` rows ordered newest-first — including any stale
+    // pre-game rows from past days the scraper never flipped to `post` — which
+    // crowd out today's games once `limit` is applied. We also filter client-side
+    // below to keep only future games as a second line of defense.
+    const from = new Date();
+    from.setHours(0, 0, 0, 0); // local start of today
+    const games = await fetchScrapedGames({
+      sport,
+      status: 'scheduled',
+      from: from.toISOString(),
+      limit: 60,
+    });
 
     return games
       .filter(
@@ -68,7 +80,10 @@ async function fetchFromScrapedFeed(sport: string): Promise<OddsGame[]> {
           typeof g.awayMoneyline === 'number' &&
           g.homeMoneyline !== 0 &&
           g.awayMoneyline !== 0 &&
-          g.gameTime
+          g.gameTime &&
+          // Drop anything that already kicked off (stale "scheduled" rows or
+          // timezone edge cases) so the slate only shows upcoming games.
+          new Date(g.gameTime).getTime() > Date.now()
       )
       .map((g) => ({
         id: g.id,
