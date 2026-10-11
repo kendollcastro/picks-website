@@ -322,8 +322,15 @@ export default function SportsPage() {
     gameTime: game.gameTime,
     homeMoneyline: game.homeMoneyline,
     awayMoneyline: game.awayMoneyline,
+    drawMoneyline: game.drawMoneyline,
     spread: game.spread,
     total: game.total,
+    spreadOdds: game.spreadOdds,
+    awaySpreadOdds: game.awaySpreadOdds,
+    totalOdds: game.totalOdds,
+    underOdds: game.underOdds,
+    venue: game.venue,
+    provider: game.bookmaker,
   }));
 
   const handleJevAnalyze = () => {

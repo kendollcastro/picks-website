@@ -1,7 +1,8 @@
 // ============================================
 // KCMPICKS - Prediction Data Hook
 // Fetches real odds + generates predictions
-// Supports: OddsPapi (primary), The Odds API (fallback)
+// Sources (in order): scraped /api/games (ESPN/DraftKings, free, full slate
+// with spread/total prices) → OddsPapi → The Odds API proxy (fallback).
 // ============================================
 
 'use client';
@@ -9,6 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getTeamRating } from '@/lib/api/massey-ratings';
 import { fetchOddsPapiGames } from '@/lib/api/oddspapi';
+import { fetchScrapedGames } from '@/lib/api/games';
 import { 
   generatePrediction, 
   formatPredictionForUI,
@@ -26,8 +28,18 @@ interface OddsGame {
   awayMoneyline: number;
   spread?: number;
   total?: number;
-  gameTime: string;
+  /** Home-side spread price (American); present when the source quotes it. */
+  spreadOdds?: number;
+  awaySpreadOdds?: number;
+  /** Over price (American); present when the source quotes it. */
+  totalOdds?: number;
+  underOdds?: number;
+  /** Soccer 1X2 draw price when the source quotes a three-way market. */
+  drawMoneyline?: number;
+  venue?: string;
   bookmaker: string;
+  gameTime: string;
+  status?: string;
 }
 
 interface PredictionWithGame {
@@ -37,7 +49,52 @@ interface PredictionWithGame {
 }
 
 // ============================================
-// FETCH ODDS FROM ODDS PAPI (Primary - Better coverage)
+// FETCH ODDS FROM SCRAPED FEED (Primary - free, full slate, all markets)
+// Supabase `games` table kept fresh by the odds-scraper GitHub Action.
+// Only pre-game rows (status=scheduled) so we never price started games.
+// ============================================
+async function fetchFromScrapedFeed(sport: string): Promise<OddsGame[]> {
+  try {
+    const games = await fetchScrapedGames({ sport, status: 'scheduled', limit: 60 });
+
+    return games
+      .filter(
+        (g) =>
+          typeof g.homeMoneyline === 'number' &&
+          typeof g.awayMoneyline === 'number' &&
+          g.homeMoneyline !== 0 &&
+          g.awayMoneyline !== 0 &&
+          g.gameTime
+      )
+      .map((g) => ({
+        id: g.id,
+        sport: g.sport,
+        homeTeam: g.homeTeam,
+        awayTeam: g.awayTeam,
+        homeMoneyline: g.homeMoneyline as number,
+        awayMoneyline: g.awayMoneyline as number,
+        spread: g.spread ?? undefined,
+        total: g.total ?? undefined,
+        spreadOdds: g.homeSpreadOdds ?? undefined,
+        awaySpreadOdds: g.awaySpreadOdds ?? undefined,
+        totalOdds: g.overOdds ?? undefined,
+        underOdds: g.underOdds ?? undefined,
+        drawMoneyline: g.drawMoneyline ?? undefined,
+        venue: g.venue ?? undefined,
+        bookmaker: g.provider || 'ESPN',
+        gameTime: g.gameTime as string,
+        status: g.status,
+      }))
+      // Soonest games first so AI analysis targets games still pre-game.
+      .sort((a, b) => new Date(a.gameTime).getTime() - new Date(b.gameTime).getTime());
+  } catch (error) {
+    console.warn('Scraped games feed unavailable:', error);
+    return [];
+  }
+}
+
+// ============================================
+// FETCH ODDS FROM ODDS PAPI (Fallback - moneyline only)
 // ============================================
 async function fetchOddsFromOddsPapi(sport: string): Promise<OddsGame[]> {
   const games = await fetchOddsPapiGames(sport, 3);
@@ -118,7 +175,11 @@ async function fetchOddsFromTheOddsAPI(sport: string): Promise<OddsGame[]> {
         homeMoneyline: ml?.outcomes?.find((o: { name: string }) => o.name === homeTeam)?.price || -110,
         awayMoneyline: ml?.outcomes?.find((o: { name: string }) => o.name === awayTeam)?.price || -110,
         spread: sp?.outcomes?.find((o: { name: string }) => o.name === homeTeam)?.point,
+        spreadOdds: sp?.outcomes?.find((o: { name: string }) => o.name === homeTeam)?.price,
+        awaySpreadOdds: sp?.outcomes?.find((o: { name: string }) => o.name === awayTeam)?.price,
         total: tot?.outcomes?.find((o: { name: string }) => o.name === 'Over')?.point,
+        totalOdds: tot?.outcomes?.find((o: { name: string }) => o.name === 'Over')?.price,
+        underOdds: tot?.outcomes?.find((o: { name: string }) => o.name === 'Under')?.price,
         gameTime: game.commence_time,
         bookmaker: bm?.title || 'N/A',
       };
@@ -173,15 +234,23 @@ export function usePredictions(sport: string = 'nba') {
     setError(null);
 
     try {
-      // Try OddsPapi first (better coverage)
-      let oddsGames = await fetchOddsFromOddsPapi(sport);
-      
-      // Fallback to The Odds API if OddsPapi fails
+      // Scraped feed first (free, full slate, spread/total prices),
+      // then OddsPapi (ML only), then The Odds API proxy.
+      let oddsGames = await fetchFromScrapedFeed(sport);
+      let source = 'scraped';
+
+      if (oddsGames.length === 0) {
+        console.log('Scraped feed empty, trying OddsPapi...');
+        oddsGames = await fetchOddsFromOddsPapi(sport);
+        source = 'oddspapi';
+      }
+
       if (oddsGames.length === 0) {
         console.log('OddsPapi returned no data, trying The Odds API...');
         oddsGames = await fetchOddsFromTheOddsAPI(sport);
+        source = 'the-odds-api';
       }
-      
+
       // If no API data, use fallback
       if (oddsGames.length === 0) {
         console.log('No API data available, using fallback');
@@ -190,7 +259,7 @@ export function usePredictions(sport: string = 'nba') {
         return;
       }
 
-      console.log(`Got ${oddsGames.length} games from API`);
+      console.log(`Got ${oddsGames.length} games from ${source}`);
 
       // Fetch stats for each team
       const statsMap: Record<string, { home?: TeamStats; away?: TeamStats }> = {};

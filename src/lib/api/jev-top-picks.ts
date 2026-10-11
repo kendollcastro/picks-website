@@ -42,12 +42,24 @@ export interface TopPickGame {
   gameTime: string;
   homeMoneyline: number;
   awayMoneyline: number;
+  /** Soccer 1X2 draw price; presence switches the market to three-way. */
+  drawMoneyline?: number;
   /** Present only when the odds source actually quotes a spread. */
   spread?: number;
   /** Present only when the odds source actually quotes a total. */
   total?: number;
+  /** Home-side spread price (American). */
   spreadOdds?: number;
+  /** Away-side spread price (American); falls back to spreadOdds. */
+  awaySpreadOdds?: number;
+  /** Over price (American). */
   totalOdds?: number;
+  /** Under price (American); falls back to totalOdds. */
+  underOdds?: number;
+  /** Venue/stadium, when the source provides it (scraped feed does). */
+  venue?: string;
+  /** Sportsbook the line came from, e.g. "DraftKings". */
+  provider?: string;
 }
 
 export interface ResearchProfile {
@@ -134,6 +146,20 @@ export function devigTwoWay(homeOdds: number, awayOdds: number): { home: number;
   return { home: homeRaw / total, away: awayRaw / total };
 }
 
+/** Devig a three-way 1X2 market (soccer: home / draw / away). */
+export function devigThreeWay(
+  homeOdds: number,
+  drawOdds: number,
+  awayOdds: number
+): { home: number; draw: number; away: number } {
+  const homeRaw = americanToImplied(homeOdds);
+  const drawRaw = americanToImplied(drawOdds);
+  const awayRaw = americanToImplied(awayOdds);
+  const total = homeRaw + drawRaw + awayRaw;
+  if (!isFinite(total) || total <= 0) return { home: 1 / 3, draw: 1 / 3, away: 1 / 3 };
+  return { home: homeRaw / total, draw: drawRaw / total, away: awayRaw / total };
+}
+
 function formatLine(line: number): string {
   return line > 0 ? `+${line}` : `${line}`;
 }
@@ -185,12 +211,17 @@ function buildResearchPrompt(game: TopPickGame, ratings: { home?: TeamInfo; away
       sport: game.sport,
       matchup: `${game.awayTeam} @ ${game.homeTeam}`,
       tipoff: game.gameTime,
+      ...(game.venue ? { venue: game.venue } : {}),
+      ...(game.provider ? { line_source: game.provider } : {}),
     },
     market: {
       home_moneyline: game.homeMoneyline,
       away_moneyline: game.awayMoneyline,
+      ...(game.drawMoneyline !== undefined ? { draw_moneyline: game.drawMoneyline } : {}),
       ...(game.spread !== undefined ? { home_spread: game.spread } : {}),
+      ...(game.spreadOdds !== undefined ? { home_spread_odds: game.spreadOdds } : {}),
       ...(game.total !== undefined ? { total: game.total } : {}),
+      ...(game.totalOdds !== undefined ? { over_odds: game.totalOdds } : {}),
     },
     team_quality: {
       home: {
@@ -288,11 +319,16 @@ function buildState(
     sport: game.sport,
     game: `${game.awayTeam} @ ${game.homeTeam}`,
     tipoff: game.gameTime,
+    ...(game.venue ? { venue: game.venue } : {}),
+    ...(game.provider ? { line_source: game.provider } : {}),
     market: {
       home_moneyline: game.homeMoneyline,
       away_moneyline: game.awayMoneyline,
+      ...(game.drawMoneyline !== undefined ? { draw_moneyline: game.drawMoneyline } : {}),
       ...(game.spread !== undefined ? { home_spread: game.spread } : {}),
+      ...(game.spreadOdds !== undefined ? { home_spread_odds: game.spreadOdds } : {}),
       ...(game.total !== undefined ? { total: game.total } : {}),
+      ...(game.totalOdds !== undefined ? { over_odds: game.totalOdds } : {}),
     },
     team_quality: {
       home: teamState(game.homeTeam, ratings.home),
@@ -312,17 +348,32 @@ function buildState(
 }
 
 function buildQuestions(game: TopPickGame) {
+  const threeWay = game.drawMoneyline !== undefined;
+
   const questions: Record<string, unknown> = {
-    winner: {
-      type: 'choice',
-      instructions:
-        'Which team is more likely to win this game outright? Use the records, ratings and research profile to assign calibrated win probabilities. Judge the teams, not the market price. ' +
-        'Return calibrated decimals between 0.05 and 0.95 for both sides — never 0, 1, or anything outside that range, even for heavy favorites.',
-      criteria: {
-        home: `${game.homeTeam} wins the game outright.`,
-        away: `${game.awayTeam} wins the game outright.`,
-      },
-    },
+    winner: threeWay
+      ? {
+          type: 'choice',
+          instructions:
+            'Which outcome is most likely to win this match? This is a three-way 1X2 market: home win, draw, or away win. ' +
+            'Use the records, ratings and research profile to assign calibrated probabilities for all three outcomes. Judge the teams, not the market price. ' +
+            'Return calibrated decimals between 0.03 and 0.95 for each outcome — never 0 or 1.',
+          criteria: {
+            home: `${game.homeTeam} wins the match.`,
+            draw: 'The match ends in a draw.',
+            away: `${game.awayTeam} wins the match.`,
+          },
+        }
+      : {
+          type: 'choice',
+          instructions:
+            'Which team is more likely to win this game outright? Use the records, ratings and research profile to assign calibrated win probabilities. Judge the teams, not the market price. ' +
+            'Return calibrated decimals between 0.05 and 0.95 for both sides — never 0, 1, or anything outside that range, even for heavy favorites.',
+          criteria: {
+            home: `${game.homeTeam} wins the game outright.`,
+            away: `${game.awayTeam} wins the game outright.`,
+          },
+        },
     situational_edge: {
       type: 'score',
       instructions:
@@ -412,30 +463,55 @@ interface ValueInputs {
   minEv: number;
 }
 
-function probabilityOfWinner(answers: JevRaw['answers']): {
-  home: number;
-  away: number;
-  confidence: number;
-} {
+function probabilityOfWinner(
+  answers: JevRaw['answers'],
+  threeWay = false
+): { home: number; away: number; draw: number; confidence: number } {
   const winner = answers?.winner;
-  const probs = winner?.probabilities ?? {};
+  const probs = (winner?.probabilities ?? {}) as Record<string, number>;
   const confidence = typeof winner?.confidence === 'number' ? winner.confidence : 0.5;
 
-  let home = typeof probs.home === 'number' ? probs.home : undefined;
-  let away = typeof probs.away === 'number' ? probs.away : undefined;
+  const has = (key: string) => typeof probs[key] === 'number' && isFinite(probs[key]) && probs[key] >= 0;
 
-  if (home === undefined && away === undefined) {
+  let home: number;
+  let away: number;
+  let draw = 0;
+
+  if (threeWay && has('home') && has('away') && has('draw')) {
+    home = probs.home;
+    away = probs.away;
+    draw = probs.draw;
+  } else if (has('home') && has('away')) {
+    home = probs.home;
+    away = probs.away;
+    if (threeWay && has('draw')) draw = probs.draw;
+  } else if (has('home')) {
+    home = probs.home;
+    away = 1 - home;
+  } else if (has('away')) {
+    away = probs.away;
+    home = 1 - away;
+  } else if (threeWay && winner?.choice === 'draw') {
+    draw = clamp(confidence, 0, 1);
+    home = (1 - draw) / 2;
+    away = 1 - draw - home;
+  } else {
     home = winner?.choice === 'home' ? confidence : winner?.choice === 'away' ? 1 - confidence : 0.5;
     away = 1 - home;
-  } else {
-    home = home ?? 1 - (away ?? 0.5);
-    away = away ?? 1 - home;
   }
 
-  // Guard against model output that doesn't sum to 1.
-  const total = home + away;
-  if (total <= 0) return { home: 0.5, away: 0.5, confidence };
-  return { home: home / total, away: away / total, confidence };
+  const total = home + away + draw;
+  if (total <= 0) return { home: threeWay ? 1 / 3 : 0.5, away: threeWay ? 1 / 3 : 0.5, draw: threeWay ? 1 / 3 : 0, confidence };
+
+  // Jev's choice probabilities often saturate near 0/1 even when instructed
+  // otherwise; clamp each raw prob before normalizing so the market-shrink
+  // blend below starts from a calibrated range (mirrors the prompt bounds).
+  const rawHome = clamp(home / total, 0.05, 0.95);
+  const rawAway = clamp(away / total, 0.05, 0.95);
+  const rawDraw = threeWay ? clamp(draw / total, 0.0, 0.9) : 0;
+  const renorm = rawHome + rawAway + rawDraw;
+  if (renorm <= 0) return { home: threeWay ? 1 / 3 : 0.5, away: threeWay ? 1 / 3 : 0.5, draw: threeWay ? 1 / 3 : 0, confidence };
+  return { home: rawHome / renorm, away: rawAway / renorm, draw: rawDraw / renorm, confidence };
 }
 
 function marketShrink(): number {
@@ -481,49 +557,112 @@ function buildCandidates({ game, answers, minEv }: ValueInputs): {
   situationalEdge: number | null;
   jevConfidence: number;
 } {
-  const { home, away, confidence } = probabilityOfWinner(answers);
-  const fair = devigTwoWay(game.homeMoneyline, game.awayMoneyline);
-  const rawHome = americanToImplied(game.homeMoneyline);
-  const rawAway = americanToImplied(game.awayMoneyline);
-
+  const threeWay = game.drawMoneyline !== undefined;
+  const { home, away, draw, confidence } = probabilityOfWinner(answers, threeWay);
   const shrink = marketShrink();
-  const pHome = fair.home + shrink * (home - fair.home);
-  const pAway = fair.away + shrink * (away - fair.away);
 
-  const candidates: ValueCandidate[] = [
-    makeCandidate({
-      betType: 'moneyline',
-      selection: `${game.homeTeam} ML`,
-      side: game.homeTeam,
-      odds: game.homeMoneyline,
-      oddsAssumed: false,
-      probability: pHome,
-      rawProbability: home,
-      marketRaw: rawHome,
-      fair: fair.home,
-      minEv,
-    }),
-    makeCandidate({
-      betType: 'moneyline',
-      selection: `${game.awayTeam} ML`,
-      side: game.awayTeam,
-      odds: game.awayMoneyline,
-      oddsAssumed: false,
-      probability: pAway,
-      rawProbability: away,
-      marketRaw: rawAway,
-      fair: fair.away,
-      minEv,
-    }),
-  ];
+  const candidates: ValueCandidate[] = [];
+  const probabilities: TopPick['probabilities'] = { homeWin: 0.5, awayWin: 0.5 };
 
-  const probabilities: TopPick['probabilities'] = { homeWin: pHome, awayWin: pAway };
+  if (threeWay && game.drawMoneyline !== undefined) {
+    // Soccer 1X2: devig all three legs so the draw's vig isn't dumped onto home/away.
+    const fair = devigThreeWay(game.homeMoneyline, game.drawMoneyline, game.awayMoneyline);
+    const rawHome = americanToImplied(game.homeMoneyline);
+    const rawDraw = americanToImplied(game.drawMoneyline);
+    const rawAway = americanToImplied(game.awayMoneyline);
+
+    const pHome = fair.home + shrink * (home - fair.home);
+    const pDraw = fair.draw + shrink * (draw - fair.draw);
+    const pAway = fair.away + shrink * (away - fair.away);
+
+    candidates.push(
+      makeCandidate({
+        betType: 'moneyline',
+        selection: `${game.homeTeam} ML`,
+        side: game.homeTeam,
+        odds: game.homeMoneyline,
+        oddsAssumed: false,
+        probability: pHome,
+        rawProbability: home,
+        marketRaw: rawHome,
+        fair: fair.home,
+        minEv,
+      }),
+      makeCandidate({
+        betType: 'moneyline',
+        selection: 'Draw',
+        side: 'Draw',
+        odds: game.drawMoneyline,
+        oddsAssumed: false,
+        probability: pDraw,
+        rawProbability: draw,
+        marketRaw: rawDraw,
+        fair: fair.draw,
+        minEv,
+      }),
+      makeCandidate({
+        betType: 'moneyline',
+        selection: `${game.awayTeam} ML`,
+        side: game.awayTeam,
+        odds: game.awayMoneyline,
+        oddsAssumed: false,
+        probability: pAway,
+        rawProbability: away,
+        marketRaw: rawAway,
+        fair: fair.away,
+        minEv,
+      })
+    );
+
+    probabilities.homeWin = pHome;
+    probabilities.awayWin = pAway;
+  } else {
+    const fair = devigTwoWay(game.homeMoneyline, game.awayMoneyline);
+    const rawHome = americanToImplied(game.homeMoneyline);
+    const rawAway = americanToImplied(game.awayMoneyline);
+
+    const pHome = fair.home + shrink * (home - fair.home);
+    const pAway = fair.away + shrink * (away - fair.away);
+
+    candidates.push(
+      makeCandidate({
+        betType: 'moneyline',
+        selection: `${game.homeTeam} ML`,
+        side: game.homeTeam,
+        odds: game.homeMoneyline,
+        oddsAssumed: false,
+        probability: pHome,
+        rawProbability: home,
+        marketRaw: rawHome,
+        fair: fair.home,
+        minEv,
+      }),
+      makeCandidate({
+        betType: 'moneyline',
+        selection: `${game.awayTeam} ML`,
+        side: game.awayTeam,
+        odds: game.awayMoneyline,
+        oddsAssumed: false,
+        probability: pAway,
+        rawProbability: away,
+        marketRaw: rawAway,
+        fair: fair.away,
+        minEv,
+      })
+    );
+
+    probabilities.homeWin = pHome;
+    probabilities.awayWin = pAway;
+  }
 
   if (game.spread !== undefined && typeof answers.home_covers?.noul === 'number') {
-    const covers = answers.home_covers.noul;
+    const covers = clamp(answers.home_covers.noul, 0.05, 0.95);
     const homeSpreadOdds = game.spreadOdds ?? -110;
-    const awaySpreadOdds = game.spreadOdds ?? -110;
+    const awaySpreadOdds = game.awaySpreadOdds ?? game.spreadOdds ?? -110;
     const awayLine = -game.spread;
+    // Devig the two quoted prices so the fair cover prob reflects the actual book hold
+    // (falls back to 0.5/0.5 when the price is assumed -110/-110).
+    const fairSpread = devigTwoWay(homeSpreadOdds, awaySpreadOdds);
     probabilities.homeCovers = covers;
 
     candidates.push(
@@ -533,10 +672,10 @@ function buildCandidates({ game, answers, minEv }: ValueInputs): {
         side: game.homeTeam,
         odds: homeSpreadOdds,
         oddsAssumed: game.spreadOdds === undefined,
-        probability: 0.5 + shrink * (covers - 0.5),
+        probability: fairSpread.home + shrink * (covers - fairSpread.home),
         rawProbability: covers,
         marketRaw: americanToImplied(homeSpreadOdds),
-        fair: 0.5,
+        fair: fairSpread.home,
         line: game.spread,
         minEv,
       }),
@@ -545,11 +684,11 @@ function buildCandidates({ game, answers, minEv }: ValueInputs): {
         selection: `${game.awayTeam} ${formatLine(awayLine)}`,
         side: game.awayTeam,
         odds: awaySpreadOdds,
-        oddsAssumed: game.spreadOdds === undefined,
-        probability: 0.5 + shrink * (1 - covers - 0.5),
+        oddsAssumed: game.awaySpreadOdds === undefined && game.spreadOdds === undefined,
+        probability: fairSpread.away + shrink * (1 - covers - fairSpread.away),
         rawProbability: 1 - covers,
         marketRaw: americanToImplied(awaySpreadOdds),
-        fair: 0.5,
+        fair: fairSpread.away,
         line: awayLine,
         minEv,
       })
@@ -557,9 +696,10 @@ function buildCandidates({ game, answers, minEv }: ValueInputs): {
   }
 
   if (game.total !== undefined && typeof answers.total_over?.noul === 'number') {
-    const over = answers.total_over.noul;
+    const over = clamp(answers.total_over.noul, 0.05, 0.95);
     const overOdds = game.totalOdds ?? -110;
-    const underOdds = game.totalOdds ?? -110;
+    const underOdds = game.underOdds ?? game.totalOdds ?? -110;
+    const fairTotal = devigTwoWay(overOdds, underOdds);
     probabilities.overProb = over;
 
     candidates.push(
@@ -569,10 +709,10 @@ function buildCandidates({ game, answers, minEv }: ValueInputs): {
         side: 'Over',
         odds: overOdds,
         oddsAssumed: game.totalOdds === undefined,
-        probability: 0.5 + shrink * (over - 0.5),
+        probability: fairTotal.home + shrink * (over - fairTotal.home),
         rawProbability: over,
         marketRaw: americanToImplied(overOdds),
-        fair: 0.5,
+        fair: fairTotal.home,
         line: game.total,
         minEv,
       }),
@@ -581,11 +721,11 @@ function buildCandidates({ game, answers, minEv }: ValueInputs): {
         selection: `Under ${game.total}`,
         side: 'Under',
         odds: underOdds,
-        oddsAssumed: game.totalOdds === undefined,
-        probability: 0.5 + shrink * (1 - over - 0.5),
+        oddsAssumed: game.underOdds === undefined && game.totalOdds === undefined,
+        probability: fairTotal.away + shrink * (1 - over - fairTotal.away),
         rawProbability: 1 - over,
         marketRaw: americanToImplied(underOdds),
-        fair: 0.5,
+        fair: fairTotal.away,
         line: game.total,
         minEv,
       })

@@ -42,10 +42,15 @@ function parseGame(raw: unknown): TopPickGame | null {
     gameTime: typeof g.gameTime === 'string' ? g.gameTime : new Date().toISOString(),
     homeMoneyline,
     awayMoneyline,
+    drawMoneyline: numberOrUndefined(g.drawMoneyline),
     spread: numberOrUndefined(g.spread),
     total: numberOrUndefined(g.total),
     spreadOdds: numberOrUndefined(g.spreadOdds),
+    awaySpreadOdds: numberOrUndefined(g.awaySpreadOdds),
     totalOdds: numberOrUndefined(g.totalOdds),
+    underOdds: numberOrUndefined(g.underOdds),
+    venue: typeof g.venue === 'string' ? g.venue : undefined,
+    provider: typeof g.provider === 'string' ? g.provider : undefined,
   };
 }
 
