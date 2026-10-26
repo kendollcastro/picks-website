@@ -1,6 +1,12 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+// NOTE: Next.js 16 has deprecated the `middleware` file convention in favor of
+// `proxy.ts`. This file is intentionally kept as-is to avoid breaking existing
+// auth/redirect behavior. Future migration: rename to `proxy.ts` and export a
+// `proxy(request)` function instead of `middleware`. See:
+// node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,

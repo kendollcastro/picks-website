@@ -7,11 +7,14 @@ export function createClient() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Supabase environment variables not set. Please configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
-    if (typeof window === 'undefined') {
-      throw new Error('Supabase environment variables are required');
+    const message =
+      'Supabase environment variables not set. Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.';
+    if (typeof window !== 'undefined') {
+      // In the browser this is a configuration error that prevents auth;
+      // warn developers but still throw so it is not silently ignored.
+      console.warn(message);
     }
-    return null as unknown as ReturnType<typeof createBrowserClient>;
+    throw new Error(message);
   }
 
   if (!client) {

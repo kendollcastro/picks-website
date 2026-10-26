@@ -58,77 +58,76 @@ export interface PickStats {
   streak_type: 'win' | 'loss';
 }
 
-function parsePickSelection(selection: string, pickType: string): { team?: string; isOver?: boolean; line?: number; side?: string } {
-  const parts = selection.split(' ');
-  
+export function parsePickSelection(selection: string, pickType: string): { team?: string; isOver?: boolean; line?: number; side?: string } {
+  const parts = selection.trim().split(/\s+/);
+
   if (pickType === 'moneyline') {
-    return { team: selection.replace(' ML', '').trim() };
+    return { team: selection.replace(/\s+ML$/i, '').trim() };
   }
-  
+
   if (pickType === 'spread') {
-    const team = parts[0];
-    const spread = parseFloat(parts[1] || '0');
-    return { team, side: spread > 0 ? 'underdog' : 'favorite' };
+    // The line is the last token; everything before it is the team name.
+    const lineToken = parts[parts.length - 1];
+    const line = parseFloat(lineToken);
+    const team = parts.slice(0, -1).join(' ');
+    return { team, line: Number.isNaN(line) ? 0 : line, side: line > 0 ? 'underdog' : 'favorite' };
   }
-  
+
   if (pickType === 'total') {
-    const isOver = parts[0] === 'Over';
-    const line = parseFloat(parts[1] || '0');
-    return { isOver, line };
+    const isOver = parts[0]?.toLowerCase() === 'over';
+    const line = parseFloat(parts[parts.length - 1] || '0');
+    return { isOver, line: Number.isNaN(line) ? 0 : line };
   }
-  
+
   return {};
 }
 
-function settlePick(pick: Pick, game: { homeScore: number; awayScore: number; status: string; homeTeam: string; awayTeam: string; isLive: boolean }): 'won' | 'lost' | 'push' | null {
+export function settlePick(pick: Pick, game: { homeScore: number; awayScore: number; status: string; homeTeam: string; awayTeam: string; isLive: boolean }): 'won' | 'lost' | 'push' | null {
   if (game.status !== 'Final' || game.isLive) return null;
-  
+
   const parsed = parsePickSelection(pick.selection, pick.pick_type);
   const homeWon = game.homeScore > game.awayScore;
   const awayWon = game.awayScore > game.homeScore;
   const isTie = game.homeScore === game.awayScore;
-  
+
   if (pick.pick_type === 'moneyline') {
     if (parsed.team === game.homeTeam && homeWon) return 'won';
     if (parsed.team === game.awayTeam && awayWon) return 'won';
     if (isTie) return 'push';
     return 'lost';
   }
-  
+
   if (pick.pick_type === 'spread') {
-    const spreadValue = Math.abs(parseFloat(pick.selection.split(' ')[1] || '0'));
-    let adjustedHomeScore = game.homeScore;
-    let adjustedAwayScore = game.awayScore;
-    
-    if (pick.selection.includes(game.homeTeam)) {
-      if (pick.selection.includes('+')) {
-        adjustedHomeScore += spreadValue;
-      } else {
-        adjustedHomeScore -= spreadValue;
-      }
-    } else if (pick.selection.includes(game.awayTeam)) {
-      if (pick.selection.includes('+')) {
-        adjustedAwayScore += spreadValue;
-      } else {
-        adjustedAwayScore -= spreadValue;
-      }
-    }
-    
-    if (adjustedHomeScore > adjustedAwayScore) return 'won';
-    if (adjustedAwayScore > adjustedHomeScore) return 'lost';
+    const line = parsed.line ?? 0;
+    const selectedTeam = parsed.team;
+    const isHomeSelected = selectedTeam === game.homeTeam;
+    const isAwaySelected = selectedTeam === game.awayTeam;
+
+    if (!isHomeSelected && !isAwaySelected) return null;
+
+    // Margin from the selected team's perspective (positive = selected team winning).
+    const selectedMargin = isHomeSelected
+      ? game.homeScore - game.awayScore
+      : game.awayScore - game.homeScore;
+
+    // Line is already from the selected team's perspective (e.g. -3.5 means they must win by 4).
+    const adjustedMargin = selectedMargin + line;
+
+    if (adjustedMargin > 0) return 'won';
+    if (adjustedMargin < 0) return 'lost';
     return 'push';
   }
-  
+
   if (pick.pick_type === 'total') {
     const totalScore = game.homeScore + game.awayScore;
     const line = parsed.line || 0;
-    
+
     if (parsed.isOver && totalScore > line) return 'won';
     if (!parsed.isOver && totalScore < line) return 'won';
     if (totalScore === line) return 'push';
     return 'lost';
   }
-  
+
   return null;
 }
 
@@ -290,6 +289,12 @@ export function usePicks() {
     awayScore?: number
   ) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No user found');
+        return false;
+      }
+
       const updateData: Record<string, unknown> = {
         status,
         settled_at: new Date().toISOString(),
@@ -301,7 +306,8 @@ export function usePicks() {
       const { error } = await supabase
         .from('picks')
         .update(updateData)
-        .eq('id', pickId);
+        .eq('id', pickId)
+        .eq('user_id', user.id);
 
       if (error) {
         console.error('Error updating pick:', error);
@@ -319,10 +325,17 @@ export function usePicks() {
   // Delete a pick
   const deletePick = async (pickId: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No user found');
+        return false;
+      }
+
       const { error } = await supabase
         .from('picks')
         .delete()
-        .eq('id', pickId);
+        .eq('id', pickId)
+        .eq('user_id', user.id);
 
       if (error) {
         console.error('Error deleting pick:', error);
@@ -339,7 +352,14 @@ export function usePicks() {
 
   // Auto-settle picks based on game results
   const settlePicks = useCallback(async (gamesData: Record<string, { homeScore: number; awayScore: number; status: string; homeTeam: string; awayTeam: string; isLive: boolean }>) => {
-    const pendingPicks = picks.filter(p => p.status === 'pending');
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+      console.warn('[usePicks] auth check failed during settlePicks:', authError.message);
+      return;
+    }
+    if (!user) return;
+
+    const pendingPicks = picks.filter(p => p.status === 'pending' && p.user_id === user.id);
     if (pendingPicks.length === 0) return;
 
     for (const pick of pendingPicks) {
@@ -362,7 +382,8 @@ export function usePicks() {
             away_score: game.awayScore,
             settled_at: new Date().toISOString(),
           })
-          .eq('id', pick.id);
+          .eq('id', pick.id)
+          .eq('user_id', user.id);
 
         if (error) {
           console.error('Error settling pick:', error);

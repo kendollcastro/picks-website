@@ -31,12 +31,12 @@ export const API_CONFIG = {
 
   // ============================================
   // 1b. ODDS PAPI - Primary odds source (FREE: 250 req/month, incl. Pinnacle)
-  // https://oddspapi.com/ - key: NEXT_PUBLIC_ODDSPAPI_KEY
-  // Moneyline-only channel. Shared client in src/lib/api/oddspapi.ts
+  // https://oddspapi.com/ - key: ODDS_PAPI_KEY (server-side only)
+  // Moneyline-only channel. Browser reaches it via /api/oddspapi proxy.
   // ============================================
   ODDS_PAPI: {
     BASE_URL: 'https://api.oddspapi.io/v4',
-    KEY: process.env.NEXT_PUBLIC_ODDSPAPI_KEY || '',
+    KEY: '', // server-only; do not expose here
     FREE_LIMIT: 250, // requests per month
     SPORT_IDS: {
       nba: 11,

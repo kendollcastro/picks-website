@@ -6,6 +6,8 @@
 // https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request
 // ============================================
 
+import { sanitizeInput } from '@/lib/utils';
+
 const DECISIONS_URL = 'https://openrouter.ai/api/alpha/decisions';
 const JEV_MODEL = '~typesafe/jev-latest';
 
@@ -60,6 +62,16 @@ export function americanToDecimal(odds: number): number {
 // ============================================
 // JEV REQUEST BUILDERS
 // ============================================
+function sanitizeContext(context: JevContext): JevContext {
+  return {
+    ...context,
+    homeTeam: sanitizeInput(context.homeTeam, 100),
+    awayTeam: sanitizeInput(context.awayTeam, 100),
+    sport: sanitizeInput(context.sport, 50),
+    recentForm: context.recentForm ? sanitizeInput(context.recentForm, 500) : undefined,
+  };
+}
+
 function buildState(context: JevContext) {
   const record =
     (wins?: number, losses?: number) =>
@@ -114,6 +126,8 @@ export async function getJevPrediction(context: JevContext): Promise<JevPredicti
     return null;
   }
 
+  const sanitizedContext = sanitizeContext(context);
+
   try {
     const response = await fetch(DECISIONS_URL, {
       method: 'POST',
@@ -124,8 +138,8 @@ export async function getJevPrediction(context: JevContext): Promise<JevPredicti
       },
       body: JSON.stringify({
         model: JEV_MODEL,
-        state: buildState(context),
-        questions: buildQuestions(context),
+        state: buildState(sanitizedContext),
+        questions: buildQuestions(sanitizedContext),
       }),
       cache: 'no-store',
     });
@@ -137,7 +151,7 @@ export async function getJevPrediction(context: JevContext): Promise<JevPredicti
     }
 
     const data = await response.json();
-    return mapAnswersToPrediction(context, data?.answers, data);
+    return mapAnswersToPrediction(sanitizedContext, data?.answers, data);
   } catch (error) {
     console.error('Error calling Jev:', error);
     return null;
@@ -161,6 +175,8 @@ export function mapAnswersToPrediction(
   meta?: { model?: string; usage?: { cost?: number } }
 ): JevPrediction | null {
   if (!answers?.winner) return null;
+
+  context = sanitizeContext(context);
 
   const model = meta?.model || JEV_MODEL;
   const cost = meta?.usage?.cost;

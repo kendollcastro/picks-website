@@ -65,8 +65,13 @@ let supabaseSingleton: SupabaseClient | null = null;
 function getServiceClient(): SupabaseClient | null {
   if (supabaseSingleton) return supabaseSingleton;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
+  // Service-role key must be used explicitly. Never fall back to the anon key;
+  // that would silently downgrade privileges and break RLS assumptions.
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    console.error('Supabase service client not configured: set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+    return null;
+  }
   supabaseSingleton = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });

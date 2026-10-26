@@ -17,6 +17,8 @@
 
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { americanToImplied, americanToDecimal } from './jev-predictions';
+import { sanitizeInput } from '@/lib/utils';
+import type { GameConditions } from './game-conditions';
 
 const CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const DECISIONS_URL = 'https://openrouter.ai/api/alpha/decisions';
@@ -65,6 +67,26 @@ export interface TopPickGame {
   awayLogo?: string | null;
   homeAbbr?: string | null;
   awayAbbr?: string | null;
+  /** Opening lines preserved by the odds scraper for line-movement analysis. */
+  openingHomeMoneyline?: number;
+  openingAwayMoneyline?: number;
+  openingSpread?: number;
+  openingHomeSpreadOdds?: number;
+  openingAwaySpreadOdds?: number;
+  openingTotal?: number;
+  openingOverOdds?: number;
+  openingUnderOdds?: number;
+  openingOddsCapturedAt?: string;
+  /** Pre-computed game context (injuries, rest, weather) fed to the research prompt. */
+  conditions?: GameConditions | null;
+  /** Public betting splits for this matchup. */
+  bettingSplit?: {
+    homeMoneyPct: number | null;
+    awayMoneyPct: number | null;
+    homeBetPct: number | null;
+    awayBetPct: number | null;
+    source: string;
+  } | null;
 }
 
 export interface ResearchProfile {
@@ -100,17 +122,7 @@ export interface ValueCandidate {
 }
 
 export interface TopPick {
-  game: {
-    id: string;
-    sport: string;
-    homeTeam: string;
-    awayTeam: string;
-    gameTime: string;
-    homeLogo?: string | null;
-    awayLogo?: string | null;
-    homeAbbr?: string | null;
-    awayAbbr?: string | null;
-  };
+  game: TopPickGame;
   candidate: ValueCandidate;
   confidence: number;
   probabilities: { homeWin: number; awayWin: number; homeCovers?: number; overProb?: number };
@@ -157,6 +169,17 @@ interface TeamInfo {
 // ============================================
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function sanitizeGame(game: TopPickGame): TopPickGame {
+  return {
+    ...game,
+    homeTeam: sanitizeInput(game.homeTeam, 100),
+    awayTeam: sanitizeInput(game.awayTeam, 100),
+    sport: sanitizeInput(game.sport, 50),
+    venue: sanitizeInput(game.venue, 200) || undefined,
+    provider: sanitizeInput(game.provider, 100) || undefined,
+  };
 }
 
 /** Devig a two-way market: returns each side's fair (no-vig) probability. */
@@ -225,7 +248,9 @@ function buildResearchPrompt(game: TopPickGame, ratings: { home?: TeamInfo; away
     },
     rules: [
       'No betting advice or picks — research only.',
-      'No live injury feed is available: do not invent injuries, lineup news or weather.',
+      game.conditions
+        ? 'Use the injury/rest/conditions data provided when relevant; do not invent additional injuries, lineup news or weather.'
+        : 'No live injury feed is available: do not invent injuries, lineup news or weather.',
       'Base claims on the data provided plus general, well-established knowledge (venue, style, typical pace).',
       'If something is unknown, say so briefly instead of guessing.',
     ],
@@ -245,6 +270,14 @@ function buildResearchPrompt(game: TopPickGame, ratings: { home?: TeamInfo; away
       ...(game.total !== undefined ? { total: game.total } : {}),
       ...(game.totalOdds !== undefined ? { over_odds: game.totalOdds } : {}),
     },
+    ...(game.conditions ? {
+      conditions: {
+        home_injuries: game.conditions.homeInjuries.map((i) => `${i.name} (${i.status}, impact ${i.impactScore}/10)`),
+        away_injuries: game.conditions.awayInjuries.map((i) => `${i.name} (${i.status}, impact ${i.impactScore}/10)`),
+        rest_days: game.conditions.restDays,
+        notes: game.conditions.notes,
+      },
+    } : {}),
     team_quality: {
       home: {
         team: game.homeTeam,
@@ -307,12 +340,26 @@ export async function researchGame(
     const content: string = data?.choices?.[0]?.message?.content ?? '';
     if (!content) return { profile: null, cost };
 
-    const parsed = JSON.parse(stripCodeFences(content));
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = JSON.parse(stripCodeFences(content));
+    } catch (parseError) {
+      console.error('Research JSON parse failed:', parseError instanceof Error ? parseError.message : parseError);
+      return { profile: null, cost };
+    }
+
+    const toStringArray = (value: unknown, maxItems: number): string[] => {
+      if (!Array.isArray(value)) return [];
+      return value
+        .slice(0, maxItems)
+        .map((item) => sanitizeInput(String(item), 200));
+    };
+
     const profile: ResearchProfile = {
-      summary: typeof parsed.summary === 'string' ? parsed.summary.slice(0, 600) : '',
-      key_factors: Array.isArray(parsed.key_factors) ? parsed.key_factors.slice(0, 4).map(String) : [],
-      home_notes: Array.isArray(parsed.home_notes) ? parsed.home_notes.slice(0, 2).map(String) : [],
-      away_notes: Array.isArray(parsed.away_notes) ? parsed.away_notes.slice(0, 2).map(String) : [],
+      summary: sanitizeInput(typeof parsed.summary === 'string' ? parsed.summary : '', 600),
+      key_factors: toStringArray(parsed.key_factors, 4),
+      home_notes: toStringArray(parsed.home_notes, 2),
+      away_notes: toStringArray(parsed.away_notes, 2),
       model,
     };
     return { profile: profile.summary ? profile : null, cost };
@@ -352,6 +399,14 @@ function buildState(
       ...(game.total !== undefined ? { total: game.total } : {}),
       ...(game.totalOdds !== undefined ? { over_odds: game.totalOdds } : {}),
     },
+    ...(game.conditions ? {
+      conditions: {
+        home_injuries: game.conditions.homeInjuries.map((i) => `${i.name} (${i.status}, impact ${i.impactScore}/10)`),
+        away_injuries: game.conditions.awayInjuries.map((i) => `${i.name} (${i.status}, impact ${i.impactScore}/10)`),
+        rest_days: game.conditions.restDays,
+        notes: game.conditions.notes,
+      },
+    } : {}),
     team_quality: {
       home: teamState(game.homeTeam, ratings.home),
       away: teamState(game.awayTeam, ratings.away),
@@ -806,7 +861,10 @@ function buildRationale(
     rationale.push(`Over probability: ${(probabilities.overProb * 100).toFixed(1)}%`);
   }
 
-  return rationale.slice(0, 4);
+  return rationale
+    .map((line) => sanitizeInput(line, 300))
+    .filter(Boolean)
+    .slice(0, 4);
 }
 
 // ============================================
@@ -856,6 +914,7 @@ export async function generateTopPicks(
 
   const validGames = games
     .slice(0, MAX_GAMES)
+    .map(sanitizeGame)
     .filter(
       (g) =>
         !!g.homeTeam &&
@@ -917,10 +976,32 @@ export async function generateTopPicks(
           homeTeam: game.homeTeam,
           awayTeam: game.awayTeam,
           gameTime: game.gameTime,
+          homeMoneyline: game.homeMoneyline,
+          awayMoneyline: game.awayMoneyline,
+          drawMoneyline: game.drawMoneyline,
+          spread: game.spread,
+          total: game.total,
+          spreadOdds: game.spreadOdds,
+          awaySpreadOdds: game.awaySpreadOdds,
+          totalOdds: game.totalOdds,
+          underOdds: game.underOdds,
+          venue: game.venue,
+          provider: game.provider,
           homeLogo: game.homeLogo,
           awayLogo: game.awayLogo,
           homeAbbr: game.homeAbbr,
           awayAbbr: game.awayAbbr,
+          openingHomeMoneyline: game.openingHomeMoneyline,
+          openingAwayMoneyline: game.openingAwayMoneyline,
+          openingSpread: game.openingSpread,
+          openingHomeSpreadOdds: game.openingHomeSpreadOdds,
+          openingAwaySpreadOdds: game.openingAwaySpreadOdds,
+          openingTotal: game.openingTotal,
+          openingOverOdds: game.openingOverOdds,
+          openingUnderOdds: game.openingUnderOdds,
+          openingOddsCapturedAt: game.openingOddsCapturedAt,
+          conditions: game.conditions,
+          bettingSplit: game.bettingSplit,
         },
         candidate: best,
         confidence,

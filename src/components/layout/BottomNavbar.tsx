@@ -9,6 +9,7 @@ import {
   Volleyball,
   Radio,
   BarChart3,
+  History,
   User,
   MoreHorizontal,
   Settings,
@@ -23,6 +24,7 @@ const mainNavItems = [
 ];
 
 const moreNavItems = [
+  { href: '/history', label: 'Model History', icon: History },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

@@ -67,6 +67,24 @@ export default function SettingsPage() {
     if (profile?.username) {
       setUsername(profile.username);
     }
+
+    // Load persisted notification preferences, falling back to defaults.
+    const raw = profile?.notifications;
+    if (raw) {
+      try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (parsed && typeof parsed === 'object') {
+          setNotifications(prev => ({
+            picks: Boolean(parsed.picks ?? prev.picks),
+            results: Boolean(parsed.results ?? prev.results),
+            promotions: Boolean(parsed.promotions ?? prev.promotions),
+            newsletter: Boolean(parsed.newsletter ?? prev.newsletter),
+          }));
+        }
+      } catch {
+        // Ignore malformed persisted preferences.
+      }
+    }
   }, [user, profile]);
 
   const handleLogout = async () => {
@@ -139,7 +157,7 @@ export default function SettingsPage() {
       const { error } = await supabase
         .from('profiles')
         .update({
-          notifications: JSON.stringify(notifications),
+          notifications,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user?.id);
@@ -147,6 +165,7 @@ export default function SettingsPage() {
       if (error) throw error;
 
       setMessage({ type: 'success', text: 'Notification preferences saved!' });
+      await refreshUser();
     } catch {
       setMessage({ type: 'error', text: 'Failed to save notifications' });
     } finally {

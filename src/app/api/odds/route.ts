@@ -11,6 +11,8 @@
 // ============================================
 
 import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api/auth';
+import { applyCors, handleOptions } from '@/lib/api/cors';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,44 +53,61 @@ function recordUpstreamCall(): void {
   upstreamCalls.push(Date.now());
 }
 
+export async function OPTIONS() {
+  return handleOptions();
+}
+
 export async function GET(request: Request) {
-  const apiKey = process.env.ODDS_API_KEY || process.env.NEXT_PUBLIC_ODDS_API_KEY;
+  const auth = await requireAuth();
+  if (auth.response) return applyCors(auth.response);
+
+  // Server-side only: never fall back to NEXT_PUBLIC_ODDS_API_KEY.
+  // That variable would expose The Odds API key in the browser bundle.
+  const apiKey = process.env.ODDS_API_KEY;
   if (!apiKey) {
-    return NextResponse.json(
-      { error: 'Odds service not configured. Set ODDS_API_KEY (server-side).' },
-      { status: 503 }
+    return applyCors(
+      NextResponse.json(
+        { error: 'Odds service not configured. Set ODDS_API_KEY (server-side).' },
+        { status: 503 }
+      )
     );
   }
 
   const sport = new URL(request.url).searchParams.get('sport');
   if (!sport) {
-    return NextResponse.json({ error: 'Missing "sport" query param' }, { status: 400 });
+    return applyCors(NextResponse.json({ error: 'Missing "sport" query param' }, { status: 400 }));
   }
 
   const sportKey = SPORT_KEYS[sport];
   if (!sportKey) {
-    return NextResponse.json({ error: `Unsupported sport: ${sport}` }, { status: 400 });
+    return applyCors(
+      NextResponse.json({ error: `Unsupported sport: ${sport}` }, { status: 400 })
+    );
   }
 
   const entry = cache.get(sportKey);
   const isFresh = entry && Date.now() - entry.fetchedAt <= CACHE_TTL_MS;
   if (entry && isFresh) {
-    return NextResponse.json(entry.data, { headers: entry.creditHeaders });
+    return applyCors(NextResponse.json(entry.data, { headers: entry.creditHeaders }));
   }
 
   // Over the hourly budget: serve the last snapshot, or refuse if we have none.
   if (upstreamCountInLastHour() >= MAX_UPSTREAM_PER_HOUR) {
     if (entry) {
-      return NextResponse.json(entry.data, {
-        headers: {
-          ...entry.creditHeaders,
-          'x-odds-stale': 'true',
-        },
-      });
+      return applyCors(
+        NextResponse.json(entry.data, {
+          headers: {
+            ...entry.creditHeaders,
+            'x-odds-stale': 'true',
+          },
+        })
+      );
     }
-    return NextResponse.json(
-      { error: 'Odds credit budget exhausted for this hour. Try again later.' },
-      { status: 429 }
+    return applyCors(
+      NextResponse.json(
+        { error: 'Odds credit budget exhausted for this hour. Try again later.' },
+        { status: 429 }
+      )
     );
   }
 
@@ -109,27 +128,35 @@ export async function GET(request: Request) {
     );
 
     if (response.status === 401 || response.status === 403) {
-      return NextResponse.json({ error: 'Invalid or expired Odds API key' }, { status: 502 });
+      return applyCors(
+        NextResponse.json({ error: 'Invalid or expired Odds API key' }, { status: 502 })
+      );
     }
 
     if (response.status === 429) {
-      return NextResponse.json({ error: 'Odds API rate limit reached' }, { status: 429 });
+      return applyCors(
+        NextResponse.json({ error: 'Odds API rate limit reached' }, { status: 429 })
+      );
     }
 
     if (!response.ok) {
-      return NextResponse.json({ error: `Odds API error: ${response.status}` }, { status: 502 });
+      return applyCors(
+        NextResponse.json({ error: `Odds API error: ${response.status}` }, { status: 502 })
+      );
     }
 
     const data = await response.json();
     if (!Array.isArray(data)) {
-      return NextResponse.json({ error: 'Unexpected Odds API response' }, { status: 502 });
+      return applyCors(
+        NextResponse.json({ error: 'Unexpected Odds API response' }, { status: 502 })
+      );
     }
 
     cache.set(sportKey, { data, fetchedAt: Date.now(), creditHeaders });
 
-    return NextResponse.json(data, { headers: creditHeaders });
+    return applyCors(NextResponse.json(data, { headers: creditHeaders }));
   } catch (error) {
     console.error('Odds proxy fetch failed:', error instanceof Error ? error.message : error);
-    return NextResponse.json({ error: 'Failed to fetch odds' }, { status: 502 });
+    return applyCors(NextResponse.json({ error: 'Failed to fetch odds' }, { status: 502 }));
   }
 }

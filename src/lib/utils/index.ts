@@ -176,3 +176,135 @@ export function getTimeUntil(date: string | Date): string {
 export function classNames(...classes: (string | boolean | undefined)[]): string {
   return classes.filter(Boolean).join(' ');
 }
+
+// ============================================
+// PICK GRADING
+// ============================================
+export type PickGrade = 'A' | 'B' | 'C' | 'D' | 'F';
+
+export interface PickGradeResult {
+  grade: PickGrade;
+  label: string;
+  color: string;
+  bg: string;
+}
+
+/**
+ * Map model edge / expected value / confidence into a letter grade.
+ * A: elite edge (>=10 pts or EV >= 8%)
+ * B: strong edge (>=7 pts or EV >= 5%)
+ * C: playable edge (>=4 pts or EV >= 2%)
+ * D: thin edge (>=2 pts or EV >= 0%)
+ * F: pass / no edge
+ */
+export function getPickGrade(
+  edge: number,
+  expectedValue = 0,
+  _confidence = 50
+): PickGradeResult {
+  if (edge >= 10 || expectedValue >= 0.08) {
+    return { grade: 'A', label: 'Strong Play', color: 'text-tertiary', bg: 'bg-tertiary/15 border-tertiary/30' };
+  }
+  if (edge >= 7 || expectedValue >= 0.05) {
+    return { grade: 'B', label: 'Good Value', color: 'text-primary', bg: 'bg-primary/15 border-primary/30' };
+  }
+  if (edge >= 4 || expectedValue >= 0.02) {
+    return { grade: 'C', label: 'Lean', color: 'text-kcm-yellow', bg: 'bg-kcm-yellow/15 border-kcm-yellow/30' };
+  }
+  if (edge >= 2 || expectedValue >= 0) {
+    return { grade: 'D', label: 'Thin Edge', color: 'text-on-surface-variant', bg: 'bg-surface-container-high border-white/10' };
+  }
+  return { grade: 'F', label: 'Pass', color: 'text-error', bg: 'bg-error/10 border-error/20' };
+}
+
+/**
+ * Convert a 1-5 star valueRating into a letter grade.
+ */
+export function getValueRatingGrade(valueRating: number): PickGradeResult {
+  if (valueRating >= 5) return { grade: 'A', label: 'Strong Play', color: 'text-tertiary', bg: 'bg-tertiary/15 border-tertiary/30' };
+  if (valueRating >= 4) return { grade: 'B', label: 'Good Value', color: 'text-primary', bg: 'bg-primary/15 border-primary/30' };
+  if (valueRating >= 3) return { grade: 'C', label: 'Lean', color: 'text-kcm-yellow', bg: 'bg-kcm-yellow/15 border-kcm-yellow/30' };
+  if (valueRating >= 2) return { grade: 'D', label: 'Thin Edge', color: 'text-on-surface-variant', bg: 'bg-surface-container-high border-white/10' };
+  return { grade: 'F', label: 'Pass', color: 'text-error', bg: 'bg-error/10 border-error/20' };
+}
+
+/**
+ * Format American odds from a probability (0..1).
+ */
+export function probabilityToAmericanOdds(probability: number): number {
+  if (probability <= 0 || probability >= 1) return -100000;
+  const p = probability;
+  if (p >= 0.5) {
+    return Math.round(-100 * (p / (1 - p)));
+  }
+  return Math.round(100 * ((1 - p) / p));
+}
+
+// ============================================
+// LINE MOVEMENT
+// ============================================
+export interface LineMovement {
+  hasOpening: boolean;
+  /** Probability points moved from opening to current (positive = market favors the pick more). */
+  deltaProb: number;
+  /** Human-readable sentence for UI. */
+  text: string;
+  /** Direction class suffix. */
+  direction: 'favor' | 'against' | 'none';
+}
+
+/**
+ * Compare current American odds to opening odds for a selected side.
+ * Returns how the line has moved in terms of implied probability.
+ */
+export function calculateLineMovement(
+  currentOdds: number,
+  openingOdds: number | undefined | null,
+  selectionName?: string
+): LineMovement {
+  if (openingOdds == null || currentOdds === 0) {
+    return { hasOpening: false, deltaProb: 0, text: '', direction: 'none' };
+  }
+
+  const currentProb = americanToImpliedProbability(currentOdds);
+  const openingProb = americanToImpliedProbability(openingOdds);
+  const deltaProb = currentProb - openingProb;
+
+  const absPct = Math.abs(deltaProb * 100);
+  const prefix = selectionName ? `${selectionName}: ` : '';
+
+  if (absPct < 0.5) {
+    return { hasOpening: true, deltaProb, text: `${prefix}Line stable since open`, direction: 'none' };
+  }
+
+  const direction = deltaProb > 0 ? 'favor' : 'against';
+  const sign = deltaProb > 0 ? '+' : '-';
+  const arrow = deltaProb > 0 ? '▲' : '▼';
+  const text = `${prefix}${arrow} Line moved ${sign}${absPct.toFixed(1)}% (${formatOdds(openingOdds)} → ${formatOdds(currentOdds)})`;
+
+  return { hasOpening: true, deltaProb, text, direction };
+}
+
+function americanToImpliedProbability(odds: number): number {
+  if (odds > 0) {
+    return 100 / (odds + 100);
+  }
+  return Math.abs(odds) / (Math.abs(odds) + 100);
+}
+
+/**
+ * Sanitize free-text input before sending to LLMs or rendering.
+ * - Trims whitespace
+ * - Strips control characters (except normal whitespace)
+ * - Collapses internal whitespace
+ * - Caps length to avoid prompt bloat/injection
+ */
+export function sanitizeInput(value: string | null | undefined, maxLength = 100): string {
+  if (value == null) return '';
+  return value
+    .replace(/[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f]/g, '')
+    .replace(/[\t\n\r]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}

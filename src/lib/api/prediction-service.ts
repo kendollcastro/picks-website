@@ -353,6 +353,60 @@ function createEnsemble(
 }
 
 // ============================================
+// MARKET EV HELPERS
+// ============================================
+function americanToDecimalProfit(odds: number): number {
+  return odds > 0 ? odds / 100 : 100 / Math.abs(odds);
+}
+
+function mlEv(prob: number, odds: number): number {
+  return prob * americanToDecimalProfit(odds) - (1 - prob);
+}
+
+/**
+ * Estimate spread cover probability from ensemble win probability and the spread.
+ * Uses a sport-agnostic normal approximation: each point of spread is worth
+ * roughly 3.5% of win probability at the margin.
+ */
+function spreadCoverProb(winProb: number, spread: number): number {
+  // spread is signed from the team's perspective (negative = favorite).
+  // Convert to an effective win probability shift.
+  const impliedMargin = (winProb - 0.5) * 24; // 24 pts ~ 1 std dev in many sports
+  const neededMargin = -spread;
+  const marginDiff = impliedMargin - neededMargin;
+  // Rough normal CDF using std dev ~12.
+  const coverProb = 0.5 + 0.5 * Math.tanh((marginDiff / 12) * 1.7);
+  return Math.max(0.05, Math.min(0.95, coverProb));
+}
+
+function spreadEv(winProb: number, spread: number, odds = -110): number {
+  const prob = spreadCoverProb(winProb, spread);
+  return mlEv(prob, odds);
+}
+
+function projectedTotal(homeStats: TeamStats, awayStats: TeamStats): number {
+  const homeScore = (homeStats.avgPointsFor + awayStats.avgPointsAgainst) / 2;
+  const awayScore = (awayStats.avgPointsFor + homeStats.avgPointsAgainst) / 2;
+  return homeScore + awayScore;
+}
+
+function totalEv(
+  homeStats: TeamStats,
+  awayStats: TeamStats,
+  totalLine: number,
+  odds = -110
+): { over: number; under: number } {
+  const proj = projectedTotal(homeStats, awayStats);
+  const diff = proj - totalLine;
+  // Each point of diff is worth ~2.5% probability (roughly 1 point ~ 2.5% in NBA/CFB/NFL).
+  const overProb = Math.max(0.05, Math.min(0.95, 0.5 + diff * 0.025));
+  return {
+    over: mlEv(overProb, odds),
+    under: mlEv(1 - overProb, odds),
+  };
+}
+
+// ============================================
 // BEST PICK SELECTOR
 // ============================================
 function selectBestPick(
@@ -360,64 +414,99 @@ function selectBestPick(
   homeOdds: number,
   awayOdds: number,
   spread?: number,
-  _total?: number
+  totalLine?: number,
+  homeStats?: TeamStats,
+  awayStats?: TeamStats
 ): RecommendedPick {
-  const homeFavored = ensemble.homeProb > ensemble.awayProb;
-  const favorite = homeFavored ? 'home' : 'away';
-  const favoriteOdds = homeFavored ? homeOdds : awayOdds;
-  const underdogOdds = homeFavored ? awayOdds : homeOdds;
-  
-  // Calculate expected value for each option
-  const homeEV = (ensemble.homeProb / 100) * (favoriteOdds > 0 ? favoriteOdds / 100 : 100 / Math.abs(favoriteOdds)) - (1 - ensemble.homeProb / 100);
-  const awayEV = (ensemble.awayProb / 100) * (underdogOdds > 0 ? underdogOdds / 100 : 100 / Math.abs(underdogOdds)) - (1 - ensemble.awayProb / 100);
-  
-  let pick: RecommendedPick;
-  
-  // Moneyline pick
-  if (homeEV > awayEV && homeEV > 0) {
-    const ev = homeEV * 100;
-    pick = {
-      type: 'moneyline',
-      selection: homeFavored ? 'home' : 'away',
-      odds: favoriteOdds,
-      probability: homeFavored ? ensemble.homeProb : ensemble.awayProb,
-      expectedValue: ev,
-      riskLevel: ev > 10 ? 'low' : ev > 5 ? 'medium' : 'high',
-    };
-  } else if (awayEV > 0) {
-    const ev = awayEV * 100;
-    pick = {
-      type: 'moneyline',
-      selection: homeFavored ? 'away' : 'home',
-      odds: underdogOdds,
-      probability: homeFavored ? ensemble.awayProb : ensemble.homeProb,
-      expectedValue: ev,
-      riskLevel: ev > 10 ? 'low' : ev > 5 ? 'medium' : 'high',
-    };
-  } else if (spread !== undefined) {
-    // Spread pick
-    const spreadValue = Math.abs(spread);
-    pick = {
+  const homeProb = ensemble.homeProb / 100;
+  const awayProb = ensemble.awayProb / 100;
+
+  const candidates: RecommendedPick[] = [];
+
+  // Moneyline candidates.
+  candidates.push({
+    type: 'moneyline',
+    selection: 'home',
+    odds: homeOdds,
+    probability: ensemble.homeProb,
+    expectedValue: mlEv(homeProb, homeOdds) * 100,
+    riskLevel: 'medium',
+  });
+  candidates.push({
+    type: 'moneyline',
+    selection: 'away',
+    odds: awayOdds,
+    probability: ensemble.awayProb,
+    expectedValue: mlEv(awayProb, awayOdds) * 100,
+    riskLevel: 'medium',
+  });
+
+  // Spread candidates.
+  if (spread !== undefined && spread !== 0) {
+    const homeSpread = spread;
+    const awaySpread = -spread;
+    candidates.push({
       type: 'spread',
-      selection: homeFavored ? `-${spreadValue}` : `+${spreadValue}`,
+      selection: 'home',
       odds: -110,
-      probability: ensemble.confidence,
-      expectedValue: (ensemble.confidence - 52.4) / 100,
-      riskLevel: ensemble.confidence > 60 ? 'low' : ensemble.confidence > 55 ? 'medium' : 'high',
-    };
-  } else {
-    // Default to moneyline
-    pick = {
-      type: 'moneyline',
-      selection: favorite,
-      odds: favoriteOdds,
-      probability: Math.max(ensemble.homeProb, ensemble.awayProb),
-      expectedValue: Math.max(homeEV, awayEV) * 100,
+      probability: spreadCoverProb(homeProb, homeSpread) * 100,
+      expectedValue: spreadEv(homeProb, homeSpread, -110) * 100,
       riskLevel: 'medium',
-    };
+    });
+    candidates.push({
+      type: 'spread',
+      selection: 'away',
+      odds: -110,
+      probability: spreadCoverProb(awayProb, awaySpread) * 100,
+      expectedValue: spreadEv(awayProb, awaySpread, -110) * 100,
+      riskLevel: 'medium',
+    });
   }
-  
-  return pick;
+
+  // Total candidates (only if we have real stats, not defaults).
+  if (
+    totalLine !== undefined &&
+    totalLine > 0 &&
+    homeStats &&
+    awayStats &&
+    (homeStats.avgPointsFor !== 100 || homeStats.avgPointsAgainst !== 100)
+  ) {
+    const totals = totalEv(homeStats, awayStats, totalLine, -110);
+    candidates.push({
+      type: 'total',
+      selection: `over ${totalLine}`,
+      odds: -110,
+      probability: (0.5 + (projectedTotal(homeStats, awayStats) - totalLine) * 0.025) * 100,
+      expectedValue: totals.over * 100,
+      riskLevel: 'medium',
+    });
+    candidates.push({
+      type: 'total',
+      selection: `under ${totalLine}`,
+      odds: -110,
+      probability: (0.5 - (projectedTotal(homeStats, awayStats) - totalLine) * 0.025) * 100,
+      expectedValue: totals.under * 100,
+      riskLevel: 'medium',
+    });
+  }
+
+  // Pick the highest EV candidate.
+  const best = candidates.reduce((max, c) => (c.expectedValue > max.expectedValue ? c : max), candidates[0]);
+
+  // Refine risk level by EV magnitude.
+  const ev = best.expectedValue;
+  best.riskLevel = ev > 10 ? 'low' : ev > 4 ? 'medium' : 'high';
+
+  // Rewrite selection to a display string.
+  if (best.type === 'spread') {
+    const isHome = best.selection === 'home';
+    const line = isHome ? spread! : -spread!;
+    best.selection = `${line > 0 ? '+' : ''}${line}`;
+  } else if (best.type === 'moneyline') {
+    best.selection = best.selection;
+  }
+
+  return best;
 }
 
 // ============================================
@@ -464,7 +553,9 @@ export function generatePrediction(
     game.homeOdds,
     game.awayOdds,
     game.spread,
-    game.total
+    game.total,
+    homeStats,
+    awayStats
   );
   
   // Calculate overall confidence and edge
@@ -530,16 +621,22 @@ export function generateBatchPredictions(
 // FORMAT OUTPUT FOR UI
 // ============================================
 export function formatPredictionForUI(result: PredictionResult, homeTeam: string, awayTeam: string) {
-  const pickTeam = result.bestPick.selection === 'home' ? homeTeam : awayTeam;
   const pickType = result.bestPick.type;
-  
+  const selection = result.bestPick.selection;
+
+  let pickTeam = '';
   let pickString = '';
+
   if (pickType === 'moneyline') {
+    pickTeam = selection === 'home' ? homeTeam : awayTeam;
     pickString = `${pickTeam} ML`;
   } else if (pickType === 'spread') {
-    pickString = `${pickTeam} ${result.bestPick.selection}`;
+    pickTeam = selection.startsWith('+') || parseFloat(selection) > 0 ? awayTeam : homeTeam;
+    pickString = `${pickTeam} ${selection}`;
   } else if (pickType === 'total') {
-    pickString = result.bestPick.selection;
+    const [side, line] = selection.split(' ');
+    pickTeam = side === 'over' ? 'Over' : 'Under';
+    pickString = `${pickTeam} ${line}`;
   }
   
   const confidence = result.confidence;

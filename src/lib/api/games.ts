@@ -28,6 +28,15 @@ export interface ScrapedGame {
   total: number | null;
   overOdds: number | null;
   underOdds: number | null;
+  openingHomeMoneyline: number | null;
+  openingAwayMoneyline: number | null;
+  openingSpread: number | null;
+  openingHomeSpreadOdds: number | null;
+  openingAwaySpreadOdds: number | null;
+  openingTotal: number | null;
+  openingOverOdds: number | null;
+  openingUnderOdds: number | null;
+  openingOddsCapturedAt: string | null;
   oddsCapturedAt: string | null;
 }
 

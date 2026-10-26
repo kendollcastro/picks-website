@@ -9,6 +9,9 @@ import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { generateTopPicks, type TopPickGame } from '@/lib/api/jev-top-picks';
 import { recordTopPicks, settlePendingTopPicks, getModelRecord } from '@/lib/api/top-picks-settle';
+import { requireAuth } from '@/lib/api/auth';
+import { checkRateLimit } from '@/lib/api/rate-limit';
+import { applyCors, handleOptions } from '@/lib/api/cors';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,11 +63,39 @@ function parseGame(raw: unknown): TopPickGame | null {
   };
 }
 
+export async function OPTIONS() {
+  return handleOptions();
+}
+
+async function enforceAiAccess(limit: number) {
+  const auth = await requireAuth();
+  if (auth.response) return { response: applyCors(auth.response) };
+
+  const rate = checkRateLimit(`ai:top-picks:${auth.user.id}`, limit, 60 * 60 * 1000);
+  if (!rate.allowed) {
+    return {
+      response: applyCors(
+        NextResponse.json(
+          { error: 'Rate limit exceeded' },
+          { status: 429, headers: { 'Retry-After': String(rate.retryAfter) } }
+        )
+      ),
+    };
+  }
+
+  return { userId: auth.user.id };
+}
+
 export async function POST(request: Request) {
+  const access = await enforceAiAccess(10);
+  if (access.response) return access.response;
+
   if (!process.env.OPENROUTER_API_KEY) {
-    return NextResponse.json(
-      { error: 'AI analysis unavailable. Check OPENROUTER_API_KEY.' },
-      { status: 502 }
+    return applyCors(
+      NextResponse.json(
+        { error: 'AI analysis unavailable. Check OPENROUTER_API_KEY.' },
+        { status: 502 }
+      )
     );
   }
 
@@ -72,22 +103,28 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return applyCors(NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }));
   }
 
   const rawGames = Array.isArray(body.games) ? body.games : null;
   if (!rawGames || rawGames.length === 0) {
-    return NextResponse.json({ error: 'Field "games" must be a non-empty array' }, { status: 400 });
+    return applyCors(
+      NextResponse.json({ error: 'Field "games" must be a non-empty array' }, { status: 400 })
+    );
   }
   if (rawGames.length > MAX_GAMES) {
-    return NextResponse.json({ error: `Maximum ${MAX_GAMES} games per request` }, { status: 400 });
+    return applyCors(
+      NextResponse.json({ error: `Maximum ${MAX_GAMES} games per request` }, { status: 400 })
+    );
   }
 
   const games = rawGames.map(parseGame).filter((g): g is TopPickGame => g !== null);
   if (games.length === 0) {
-    return NextResponse.json(
-      { error: 'No valid games: each needs homeTeam, awayTeam, sport and both moneylines' },
-      { status: 400 }
+    return applyCors(
+      NextResponse.json(
+        { error: 'No valid games: each needs homeTeam, awayTeam, sport and both moneylines' },
+        { status: 400 }
+      )
     );
   }
 
@@ -111,12 +148,15 @@ export async function POST(request: Request) {
     console.error('[top-picks] settle failed:', err)
   );
 
-  return NextResponse.json(result);
+  return applyCors(NextResponse.json(result));
 }
 
 // GET /api/ai/top-picks → settle any pending picks, then return the model's
 // running record (win-rate, ROI, calibration) from the `top_picks` table.
 export async function GET() {
+  const access = await enforceAiAccess(10);
+  if (access.response) return access.response;
+
   const settle = await settlePendingTopPicks().catch((err) => {
     console.error('[top-picks] settle failed:', err);
     return null;
@@ -126,9 +166,11 @@ export async function GET() {
     return null;
   });
 
-  return NextResponse.json({
-    record,
-    lastSettle: settle?.summary ?? null,
-    error: settle?.error ?? null,
-  });
+  return applyCors(
+    NextResponse.json({
+      record,
+      lastSettle: settle?.summary ?? null,
+      error: settle?.error ?? null,
+    })
+  );
 }

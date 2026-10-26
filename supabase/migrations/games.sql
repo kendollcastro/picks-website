@@ -33,6 +33,16 @@ CREATE TABLE IF NOT EXISTS games (
   total DECIMAL(6,2),                 -- over/under line
   over_odds INTEGER,
   under_odds INTEGER,
+  -- Opening lines: captured on first scrape and preserved for line-movement analysis
+  opening_home_moneyline INTEGER,
+  opening_away_moneyline INTEGER,
+  opening_spread DECIMAL(6,2),
+  opening_home_spread_odds INTEGER,
+  opening_away_spread_odds INTEGER,
+  opening_total DECIMAL(6,2),
+  opening_over_odds INTEGER,
+  opening_under_odds INTEGER,
+  opening_odds_captured_at TIMESTAMPTZ,
   odds_captured_at TIMESTAMPTZ,
   -- Meta
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -68,3 +78,39 @@ CREATE TRIGGER trg_games_updated_at
   BEFORE UPDATE ON games
   FOR EACH ROW
   EXECUTE FUNCTION set_games_updated_at();
+
+-- Preserve opening lines on first insert / update so line-movement analysis
+-- always has the earliest captured price as reference.
+CREATE OR REPLACE FUNCTION preserve_opening_lines()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.opening_home_moneyline := COALESCE(NEW.opening_home_moneyline, NEW.home_moneyline);
+    NEW.opening_away_moneyline := COALESCE(NEW.opening_away_moneyline, NEW.away_moneyline);
+    NEW.opening_spread := COALESCE(NEW.opening_spread, NEW.spread);
+    NEW.opening_home_spread_odds := COALESCE(NEW.opening_home_spread_odds, NEW.home_spread_odds);
+    NEW.opening_away_spread_odds := COALESCE(NEW.opening_away_spread_odds, NEW.away_spread_odds);
+    NEW.opening_total := COALESCE(NEW.opening_total, NEW.total);
+    NEW.opening_over_odds := COALESCE(NEW.opening_over_odds, NEW.over_odds);
+    NEW.opening_under_odds := COALESCE(NEW.opening_under_odds, NEW.under_odds);
+    NEW.opening_odds_captured_at := COALESCE(NEW.opening_odds_captured_at, NEW.odds_captured_at);
+  ELSIF TG_OP = 'UPDATE' THEN
+    NEW.opening_home_moneyline := COALESCE(NEW.opening_home_moneyline, OLD.opening_home_moneyline, NEW.home_moneyline);
+    NEW.opening_away_moneyline := COALESCE(NEW.opening_away_moneyline, OLD.opening_away_moneyline, NEW.away_moneyline);
+    NEW.opening_spread := COALESCE(NEW.opening_spread, OLD.opening_spread, NEW.spread);
+    NEW.opening_home_spread_odds := COALESCE(NEW.opening_home_spread_odds, OLD.opening_home_spread_odds, NEW.home_spread_odds);
+    NEW.opening_away_spread_odds := COALESCE(NEW.opening_away_spread_odds, OLD.opening_away_spread_odds, NEW.away_spread_odds);
+    NEW.opening_total := COALESCE(NEW.opening_total, OLD.opening_total, NEW.total);
+    NEW.opening_over_odds := COALESCE(NEW.opening_over_odds, OLD.opening_over_odds, NEW.over_odds);
+    NEW.opening_under_odds := COALESCE(NEW.opening_under_odds, OLD.opening_under_odds, NEW.under_odds);
+    NEW.opening_odds_captured_at := COALESCE(NEW.opening_odds_captured_at, OLD.opening_odds_captured_at, NEW.odds_captured_at);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_games_preserve_opening_lines ON games;
+CREATE TRIGGER trg_games_preserve_opening_lines
+  BEFORE INSERT OR UPDATE ON games
+  FOR EACH ROW
+  EXECUTE FUNCTION preserve_opening_lines();

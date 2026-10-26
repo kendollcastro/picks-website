@@ -8,8 +8,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getTeamRating } from '@/lib/api/massey-ratings';
-import { fetchOddsPapiGames } from '@/lib/api/oddspapi';
+import { getTeamRating, type TeamRating } from '@/lib/api/massey-ratings';
+import { buildGameConditions, applyConditionsToProbability, type GameConditions } from '@/lib/api/game-conditions';
+import { fetchBettingSplits, findSplitForGame, type BettingSplit } from '@/lib/api/betting-splits';
+import { fetchOddsPapiGames } from '@/lib/api/oddspapi-client';
 import { fetchScrapedGames } from '@/lib/api/games';
 import { 
   generatePrediction, 
@@ -36,6 +38,15 @@ interface OddsGame {
   underOdds?: number;
   /** Soccer 1X2 draw price when the source quotes a three-way market. */
   drawMoneyline?: number;
+  openingHomeMoneyline?: number;
+  openingAwayMoneyline?: number;
+  openingSpread?: number;
+  openingHomeSpreadOdds?: number;
+  openingAwaySpreadOdds?: number;
+  openingTotal?: number;
+  openingOverOdds?: number;
+  openingUnderOdds?: number;
+  openingOddsCapturedAt?: string;
   venue?: string;
   homeLogo?: string | null;
   awayLogo?: string | null;
@@ -46,10 +57,14 @@ interface OddsGame {
   status?: string;
 }
 
-interface PredictionWithGame {
+export interface PredictionWithGame {
   game: OddsGame;
   prediction: ReturnType<typeof formatPredictionForUI>;
   rawPrediction: PredictionResult;
+  homeRating: TeamRating | null;
+  awayRating: TeamRating | null;
+  conditions: GameConditions | null;
+  bettingSplit: BettingSplit | null;
 }
 
 // ============================================
@@ -99,6 +114,15 @@ async function fetchFromScrapedFeed(sport: string): Promise<OddsGame[]> {
         totalOdds: g.overOdds ?? undefined,
         underOdds: g.underOdds ?? undefined,
         drawMoneyline: g.drawMoneyline ?? undefined,
+        openingHomeMoneyline: g.openingHomeMoneyline ?? undefined,
+        openingAwayMoneyline: g.openingAwayMoneyline ?? undefined,
+        openingSpread: g.openingSpread ?? undefined,
+        openingHomeSpreadOdds: g.openingHomeSpreadOdds ?? undefined,
+        openingAwaySpreadOdds: g.openingAwaySpreadOdds ?? undefined,
+        openingTotal: g.openingTotal ?? undefined,
+        openingOverOdds: g.openingOverOdds ?? undefined,
+        openingUnderOdds: g.openingUnderOdds ?? undefined,
+        openingOddsCapturedAt: g.openingOddsCapturedAt ?? undefined,
         venue: g.venue ?? undefined,
         homeLogo: g.homeLogo,
         awayLogo: g.awayLogo,
@@ -216,7 +240,7 @@ async function fetchOddsFromTheOddsAPI(sport: string): Promise<OddsGame[]> {
 // ============================================
 // FETCH TEAM STATS (from Massey ratings when available)
 // ============================================
-async function fetchTeamStats(teamName: string, sport: string): Promise<TeamStats | null> {
+async function fetchTeamStats(teamName: string, sport: string): Promise<{ stats: TeamStats; rating: TeamRating } | null> {
   const rating = await getTeamRating(sport, teamName);
   if (!rating) return null;
 
@@ -231,16 +255,19 @@ async function fetchTeamStats(teamName: string, sport: string): Promise<TeamStat
   );
 
   return {
-    wins,
-    losses,
-    winPct,
-    avgPointsFor: rating.points_for || 100,
-    avgPointsAgainst: rating.points_against || 100,
-    last5,
-    homeRecord: { wins: Math.round(wins * 0.55), losses: Math.round(losses * 0.4) },
-    awayRecord: { wins: Math.round(wins * 0.45), losses: Math.round(losses * 0.6) },
-    restDays: 2,
-    injuryImpact: 0,
+    stats: {
+      wins,
+      losses,
+      winPct,
+      avgPointsFor: rating.points_for || 100,
+      avgPointsAgainst: rating.points_against || 100,
+      last5,
+      homeRecord: { wins: Math.round(wins * 0.55), losses: Math.round(losses * 0.4) },
+      awayRecord: { wins: Math.round(wins * 0.45), losses: Math.round(losses * 0.6) },
+      restDays: 2,
+      injuryImpact: 0,
+    },
+    rating,
   };
 }
 
@@ -295,61 +322,103 @@ export function usePredictions(sport: string = 'nba') {
 
       console.log(`Got ${oddsGames.length} games from ${source}`);
 
-      // Fetch stats for each team
+      // Fetch stats + ratings for each team
       const statsMap: Record<string, { home?: TeamStats; away?: TeamStats }> = {};
-      
+      const ratingMap: Record<string, { home?: TeamRating; away?: TeamRating }> = {};
+
       for (const game of oddsGames) {
         if (!statsMap[game.homeTeam]) {
           statsMap[game.homeTeam] = {};
+          ratingMap[game.homeTeam] = {};
         }
         if (!statsMap[game.awayTeam]) {
           statsMap[game.awayTeam] = {};
+          ratingMap[game.awayTeam] = {};
         }
-        
+
         // Parallel fetch
-        const [homeStats, awayStats] = await Promise.all([
+        const [homeResult, awayResult] = await Promise.all([
           fetchTeamStats(game.homeTeam, sport),
           fetchTeamStats(game.awayTeam, sport),
         ]);
-        
-        statsMap[game.homeTeam].home = homeStats || undefined;
-        statsMap[game.awayTeam].away = awayStats || undefined;
+
+        if (homeResult) {
+          statsMap[game.homeTeam].home = homeResult.stats;
+          ratingMap[game.homeTeam].home = homeResult.rating;
+        }
+        if (awayResult) {
+          statsMap[game.awayTeam].away = awayResult.stats;
+          ratingMap[game.awayTeam].away = awayResult.rating;
+        }
+      }
+
+      // Fetch conditions once per sport (injuries proxy caches internally).
+      const { fetchInjuries } = await import('@/lib/api/game-conditions');
+      const sportInjuries = await fetchInjuries(sport);
+
+      // Fetch public betting splits once per sport.
+      let sportSplits: BettingSplit[] = [];
+      try {
+        const splitsResponse = await fetchBettingSplits(sport);
+        sportSplits = splitsResponse.splits;
+      } catch (error) {
+        console.warn('[usePredictions] betting splits unavailable:', error);
       }
 
       // Generate predictions for each game
-      const results: PredictionWithGame[] = oddsGames.map(game => {
-        const gameData: GameData = {
-          id: game.id,
-          sport: game.sport,
-          homeTeam: game.homeTeam,
-          awayTeam: game.awayTeam,
-          homeOdds: game.homeMoneyline,
-          awayOdds: game.awayMoneyline,
-          spread: game.spread,
-          total: game.total,
-          gameTime: game.gameTime,
-        };
+      const results: PredictionWithGame[] = await Promise.all(
+        oddsGames.map(async (game) => {
+          const gameData: GameData = {
+            id: game.id,
+            sport: game.sport,
+            homeTeam: game.homeTeam,
+            awayTeam: game.awayTeam,
+            homeOdds: game.homeMoneyline,
+            awayOdds: game.awayMoneyline,
+            spread: game.spread,
+            total: game.total,
+            gameTime: game.gameTime,
+          };
 
-        const stats = statsMap[game.homeTeam] || statsMap[game.awayTeam] || {};
-        
-        const rawPrediction = generatePrediction(
-          gameData,
-          stats.home,
-          stats.away
-        );
+          const stats = statsMap[game.homeTeam] || statsMap[game.awayTeam] || {};
 
-        const formattedPrediction = formatPredictionForUI(
-          rawPrediction,
-          game.homeTeam,
-          game.awayTeam
-        );
+          const rawPrediction = generatePrediction(gameData, stats.home, stats.away);
 
-        return {
-          game,
-          prediction: formattedPrediction,
-          rawPrediction,
-        };
-      });
+          const conditions = await buildGameConditions(
+            game.sport,
+            game.homeTeam,
+            game.awayTeam,
+            game.gameTime,
+            {
+              homeAbbr: game.homeAbbr,
+              awayAbbr: game.awayAbbr,
+              venue: game.venue,
+              injuries: sportInjuries,
+            }
+          );
+
+          // Apply injury/rest adjustments to the ensemble probabilities.
+          if (conditions) {
+            const adjustedHome = applyConditionsToProbability(rawPrediction.ensemble.homeProb / 100, conditions);
+            rawPrediction.ensemble.homeProb = adjustedHome * 100;
+            rawPrediction.ensemble.awayProb = (1 - adjustedHome) * 100;
+          }
+
+          const formattedPrediction = formatPredictionForUI(rawPrediction, game.homeTeam, game.awayTeam);
+
+          const bettingSplit = findSplitForGame(sportSplits, game.homeTeam, game.awayTeam);
+
+          return {
+            game,
+            prediction: formattedPrediction,
+            rawPrediction,
+            homeRating: ratingMap[game.homeTeam]?.home ?? null,
+            awayRating: ratingMap[game.awayTeam]?.away ?? null,
+            conditions,
+            bettingSplit,
+          };
+        })
+      );
 
       // Sort by value/edge (best picks first)
       results.sort((a, b) => b.rawPrediction.edge - a.rawPrediction.edge);
@@ -407,7 +476,7 @@ export function useGamePrediction(
     const generate = async () => {
       setLoading(true);
       
-      const [homeStats, awayStats] = await Promise.all([
+      const [homeResult, awayResult] = await Promise.all([
         fetchTeamStats(homeTeam, sport),
         fetchTeamStats(awayTeam, sport),
       ]);
@@ -426,8 +495,8 @@ export function useGamePrediction(
 
       const result = generatePrediction(
         gameData,
-        homeStats || undefined,
-        awayStats || undefined
+        homeResult?.stats,
+        awayResult?.stats
       );
 
       setPrediction(result);

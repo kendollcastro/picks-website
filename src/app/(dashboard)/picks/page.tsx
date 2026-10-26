@@ -2,13 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { cn, formatGameTime, formatGameDate, formatOdds } from '@/lib/utils';
+import { cn, formatGameTime, formatGameDate, formatOdds, getPickGrade, getValueRatingGrade, probabilityToAmericanOdds, calculateLineMovement } from '@/lib/utils';
 import { useLiveData, type LiveGame } from '@/hooks/useLiveData';
 import { usePicks, type CreatePickInput } from '@/hooks/usePicks';
 import { usePredictions } from '@/hooks/usePredictions';
 import { useTopPicks } from '@/hooks/useTopPicks';
 import { useTopPickRecord } from '@/hooks/useTopPickRecord';
 import type { TopPick, TopPickGame } from '@/lib/api/jev-top-picks';
+import { GradeBadge } from '@/components/ui/GradeBadge';
+import { LineMovementAlert } from '@/components/ui/LineMovementAlert';
+import { GameConditionsAlert } from '@/components/ui/GameConditionsAlert';
+import { BettingSplitsBadge } from '@/components/ui/BettingSplitsBadge';
+import { HeroPickCard } from './HeroPickCard';
+import { RunnerUpCard } from './RunnerUpCard';
 import {
   RefreshCw,
   Loader2,
@@ -24,6 +30,7 @@ import {
   Hash,
   Scale,
   Zap,
+  ShieldCheck,
 } from 'lucide-react';
 
 const sports = [
@@ -216,6 +223,23 @@ export default function SportsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [jevSort, setJevSort] = useState<'safest' | 'ev' | 'edge'>('safest');
+  const [showModelRecord, setShowModelRecord] = useState(() => {
+    try {
+      return localStorage.getItem('kcm:hideModelRecord') !== 'true';
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleModelRecord = (visible: boolean) => {
+    setShowModelRecord(visible);
+    try {
+      localStorage.setItem('kcm:hideModelRecord', String(!visible));
+    } catch {
+      // ignore
+    }
+  };
 
   const { games, loading: gamesLoading, refresh: refreshGames } = useLiveData(selectedSport);
   const { picks: myPicks, stats: pickStats, createPick, settlePicks } = usePicks();
@@ -343,27 +367,38 @@ export default function SportsPage() {
   // Cap at 8 soonest games with real odds; the button count must match
   // what we actually send (was labeling 60+ games but analyzing 8).
   const jevGames: TopPickGame[] = enhancedPredictions
-    .map(({ game }) => ({
-      id: game.id,
-      sport: game.sport,
-      homeTeam: game.homeTeam,
-      awayTeam: game.awayTeam,
-      gameTime: game.gameTime,
-      homeMoneyline: game.homeMoneyline,
-      awayMoneyline: game.awayMoneyline,
-      drawMoneyline: game.drawMoneyline,
-      spread: game.spread,
-      total: game.total,
-      spreadOdds: game.spreadOdds,
-      awaySpreadOdds: game.awaySpreadOdds,
-      totalOdds: game.totalOdds,
-      underOdds: game.underOdds,
-      venue: game.venue,
-      provider: game.bookmaker,
-      homeLogo: game.homeLogo,
-      awayLogo: game.awayLogo,
-      homeAbbr: game.homeAbbr,
-      awayAbbr: game.awayAbbr,
+    .map((pred) => ({
+      id: pred.game.id,
+      sport: pred.game.sport,
+      homeTeam: pred.game.homeTeam,
+      awayTeam: pred.game.awayTeam,
+      gameTime: pred.game.gameTime,
+      homeMoneyline: pred.game.homeMoneyline,
+      awayMoneyline: pred.game.awayMoneyline,
+      drawMoneyline: pred.game.drawMoneyline,
+      spread: pred.game.spread,
+      total: pred.game.total,
+      spreadOdds: pred.game.spreadOdds,
+      awaySpreadOdds: pred.game.awaySpreadOdds,
+      totalOdds: pred.game.totalOdds,
+      underOdds: pred.game.underOdds,
+      venue: pred.game.venue,
+      provider: pred.game.bookmaker,
+      homeLogo: pred.game.homeLogo,
+      awayLogo: pred.game.awayLogo,
+      homeAbbr: pred.game.homeAbbr,
+      awayAbbr: pred.game.awayAbbr,
+      openingHomeMoneyline: pred.game.openingHomeMoneyline,
+      openingAwayMoneyline: pred.game.openingAwayMoneyline,
+      openingSpread: pred.game.openingSpread,
+      openingHomeSpreadOdds: pred.game.openingHomeSpreadOdds,
+      openingAwaySpreadOdds: pred.game.openingAwaySpreadOdds,
+      openingTotal: pred.game.openingTotal,
+      openingOverOdds: pred.game.openingOverOdds,
+      openingUnderOdds: pred.game.openingUnderOdds,
+      openingOddsCapturedAt: pred.game.openingOddsCapturedAt,
+      conditions: pred.conditions,
+      bettingSplit: pred.bettingSplit,
     }))
     .slice(0, 8);
 
@@ -619,7 +654,7 @@ export default function SportsPage() {
             </div>
 
             {/* Model record — real win-rate / ROI from settled bets */}
-            {(() => {
+            {showModelRecord && (() => {
               const rec = recordData?.record;
               const graded = rec?.graded ?? 0;
               const showEmpty = !recordLoading && (!rec || graded === 0);
@@ -629,9 +664,19 @@ export default function SportsPage() {
               return (
                 <div className="px-4 py-2.5 border-b border-white/5 bg-surface-container-low/30">
                   {showEmpty && (
-                    <p className="text-[11px] text-on-surface-variant">
-                      Model record is empty — settled bets will build win-rate, ROI and calibration here.
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] text-on-surface-variant">
+                        Model record is empty — settled bets will build win-rate, ROI and calibration here.
+                      </p>
+                      <button
+                        onClick={() => toggleModelRecord(false)}
+                        className="p-1 rounded-md hover:bg-white/5 text-on-surface-variant/70 shrink-0"
+                        title="Hide model record"
+                        aria-label="Hide model record"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
                   )}
                   {showData && (
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
@@ -661,6 +706,14 @@ export default function SportsPage() {
                           settled {new Date(rec!.lastUpdated).toLocaleDateString()}
                         </span>
                       )}
+                      <button
+                        onClick={() => toggleModelRecord(false)}
+                        className="p-1 rounded-md hover:bg-white/5 text-on-surface-variant/70 ml-1"
+                        title="Hide model record"
+                        aria-label="Hide model record"
+                      >
+                        <X size={12} />
+                      </button>
                     </div>
                   )}
                   {recordLoading && (
@@ -669,6 +722,16 @@ export default function SportsPage() {
                 </div>
               );
             })()}
+            {!showModelRecord && !recordLoading && (
+              <div className="px-4 py-2 border-b border-white/5 bg-surface-container-low/30">
+                <button
+                  onClick={() => toggleModelRecord(true)}
+                  className="text-[11px] font-medium text-on-surface-variant hover:text-tertiary transition-colors"
+                >
+                  Show model record
+                </button>
+              </div>
+            )}
 
             <div className="p-4">
               {jevError && (
@@ -699,112 +762,83 @@ export default function SportsPage() {
               )}
 
               {jevResult && jevResult.picks.length > 0 && (
-                <div className="space-y-3">
-                  {jevResult.picks.map((item) => {
-                    const { candidate } = item;
-                    const betLabel =
-                      candidate.betType === 'moneyline' ? 'Moneyline' : candidate.betType === 'spread' ? 'Spread' : 'Total';
+                <div className="space-y-8">
+                  {/* Sort controls */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-container-low/50 rounded-xl p-3 border border-white/5">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck size={14} className="text-tertiary" />
+                      <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+                        Rank by
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {[
+                        { id: 'safest', label: 'Safest', icon: <ShieldCheck size={12} /> },
+                        { id: 'ev', label: 'Best +EV', icon: <DollarSign size={12} /> },
+                        { id: 'edge', label: 'Biggest Edge', icon: <TrendingUp size={12} /> },
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setJevSort(opt.id as typeof jevSort)}
+                          className={cn(
+                            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all',
+                            jevSort === opt.id
+                              ? 'bg-tertiary/20 text-tertiary border border-tertiary/30'
+                              : 'bg-surface-container-high text-on-surface-variant border border-white/5 hover:bg-white/5'
+                          )}
+                        >
+                          {opt.icon}
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const sorted = [...jevResult.picks].sort((a, b) => {
+                      if (jevSort === 'safest') {
+                        const scoreA = a.confidence * 100 + a.candidate.jevProbability * 100 + a.candidate.edge;
+                        const scoreB = b.confidence * 100 + b.candidate.jevProbability * 100 + b.candidate.edge;
+                        return scoreB - scoreA;
+                      }
+                      if (jevSort === 'edge') return b.candidate.edge - a.candidate.edge;
+                      return b.candidate.expectedValue - a.candidate.expectedValue;
+                    });
+                    const hero = sorted[0];
+                    const runners = sorted.slice(1, 4);
                     return (
-                      <div
-                        key={`${item.game.id}-${candidate.selection}`}
-                        className={cn(
-                          'rounded-xl border p-3.5 transition-colors',
-                          candidate.valueBet
-                            ? 'bg-tertiary/5 border-tertiary/30'
-                            : 'bg-surface-container-high/60 border-white/5'
+                      <>
+                        {/* Hero Pick */}
+                        <HeroPickCard item={hero} rank={1} onTakePick={() => handleJevTakePick(hero)} />
+
+                        {/* Runner-ups */}
+                        {runners.length > 0 && (
+                          <div>
+                            <div className="flex items-center justify-between mb-5">
+                              <div>
+                                <h2 className="text-xl font-bold text-on-surface flex items-center gap-2">
+                                  Ranked Contenders
+                                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-surface-container-high text-outline">TOP #2 - #{runners.length + 1}</span>
+                                </h2>
+                                <p className="text-xs text-on-surface-variant mt-1">Sub-tier algorithmic values with asymmetric risk-to-reward profiles.</p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                              {runners.map((item, idx) => (
+                                <RunnerUpCard
+                                  key={`${item.game.id}-${item.candidate.selection}`}
+                                  item={item}
+                                  rank={idx + 2}
+                                  accentColor={idx === 0 ? 'amber' : idx === 1 ? 'primary' : 'tertiary'}
+                                  onTakePick={() => handleJevTakePick(item)}
+                                />
+                              ))}
+                            </div>
+                          </div>
                         )}
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span
-                                className={cn(
-                                  'text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded',
-                                  candidate.betType === 'moneyline'
-                                    ? 'bg-primary/15 text-primary'
-                                    : candidate.betType === 'spread'
-                                      ? 'bg-secondary/15 text-secondary'
-                                      : 'bg-tertiary/15 text-tertiary'
-                                )}
-                              >
-                                {betLabel}
-                              </span>
-                              <span className="flex items-center gap-1.5 text-[11px] text-on-surface-variant truncate min-w-0">
-                                {item.game.awayLogo ? (
-                                  <Image unoptimized src={item.game.awayLogo} alt={item.game.awayTeam} width={14} height={14} className="w-3.5 h-3.5 object-contain shrink-0" />
-                                ) : null}
-                                <span className="truncate">{item.game.awayTeam}</span>
-                                <span className="shrink-0">@</span>
-                                {item.game.homeLogo ? (
-                                  <Image unoptimized src={item.game.homeLogo} alt={item.game.homeTeam} width={14} height={14} className="w-3.5 h-3.5 object-contain shrink-0" />
-                                ) : null}
-                                <span className="truncate">{item.game.homeTeam}</span>
-                              </span>
-                            </div>
-                            <p className="font-['Space_Grotesk'] font-black text-base flex items-center gap-2">
-                              {candidate.selection}
-                              <span className="text-sm text-on-surface-variant">{formatOdds(candidate.odds)}</span>
-                            </p>
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] text-on-surface-variant">
-                              <span>
-                                Jev{' '}
-                                <span className="font-bold text-on-surface">
-                                  {(candidate.jevProbability * 100).toFixed(1)}%
-                                </span>
-                              </span>
-                              <span>
-                                Fair{' '}
-                                <span className="font-bold text-on-surface">
-                                  {(candidate.fairProbability * 100).toFixed(1)}%
-                                </span>
-                              </span>
-                              <span>
-                                Edge{' '}
-                                <span className={cn('font-bold', candidate.edge >= 0 ? 'text-tertiary' : 'text-error')}>
-                                  {candidate.edge >= 0 ? '+' : ''}
-                                  {candidate.edge.toFixed(1)}pts
-                                </span>
-                              </span>
-                              <span>
-                                Confidence <span className="font-bold text-on-surface">{item.confidence}</span>
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col items-end gap-2">
-                            <span
-                              className={cn(
-                                "font-['Space_Grotesk'] font-black text-lg",
-                                candidate.expectedValue >= 0 ? 'text-tertiary' : 'text-error'
-                              )}
-                            >
-                              {candidate.expectedValue >= 0 ? '+' : ''}
-                              {(candidate.expectedValue * 100).toFixed(1)}%
-                            </span>
-                            <span className="text-[9px] uppercase tracking-wider text-on-surface-variant -mt-1">
-                              Expected value
-                            </span>
-                            <button
-                              onClick={() => handleJevTakePick(item)}
-                              className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-tertiary to-tertiary/80 text-white text-[11px] font-bold uppercase tracking-wider shadow-lg shadow-tertiary/20 hover:shadow-tertiary/30 active:scale-[0.98] transition-all flex items-center gap-1.5"
-                            >
-                              <Bolt size={12} />
-                              Take Pick
-                            </button>
-                          </div>
-                        </div>
-
-                        <ul className="mt-3 space-y-1">
-                          {item.rationale.slice(0, 3).map((line, idx) => (
-                            <li key={idx} className="text-[11px] text-on-surface-variant flex gap-2">
-                              <span className="text-tertiary/70">›</span>
-                              <span className="min-w-0 flex-1">{line}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                      </>
                     );
-                  })}
+                  })()}
 
                   <p className="text-[10px] text-on-surface-variant/80 pt-1">
                     Models: {jevResult.models.jev}
@@ -852,6 +886,10 @@ export default function SportsPage() {
                   key={item.game.id}
                   game={item.game}
                   prediction={item.prediction}
+                  homeRating={item.homeRating}
+                  awayRating={item.awayRating}
+                  conditions={item.conditions}
+                  bettingSplit={item.bettingSplit}
                   onTakePick={() => handleEnhancedPick(item)}
                 />
               ))
@@ -1114,6 +1152,7 @@ function AIPredictionCard({
   const bestPick = prediction.recommendations[0];
   const isHighValue = prediction.edge > 5;
   const gameStarted = game.isLive || (new Date(game.gameTime) < new Date());
+  const legacyGrade = getPickGrade(prediction.edge, 0, prediction.confidence * 20);
 
   return (
     <div className="glass-card rounded-2xl overflow-hidden group hover:border-white/15 transition-all duration-300 flex flex-col min-h-[380px]">
@@ -1142,9 +1181,12 @@ function AIPredictionCard({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
-          <Sparkles size={12} className="text-primary" />
-          <span className="text-[10px] font-bold text-primary">AI PICK</span>
+        <div className="flex items-center gap-2">
+          <GradeBadge grade={legacyGrade} />
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={12} className="text-primary" />
+            <span className="text-[10px] font-bold text-primary">AI PICK</span>
+          </div>
         </div>
       </div>
 
@@ -1314,13 +1356,30 @@ function AIPredictionCard({
 function EnhancedAIPredictionCard({
   game,
   prediction,
+  homeRating,
+  awayRating,
+  conditions,
+  bettingSplit,
   onTakePick,
 }: {
-  game: { id: string; homeTeam: string; awayTeam: string; homeMoneyline?: number; awayMoneyline?: number; sport: string; gameTime: string; homeLogo?: string | null; awayLogo?: string | null };
+  game: {
+    id: string;
+    homeTeam: string;
+    awayTeam: string;
+    homeMoneyline?: number;
+    awayMoneyline?: number;
+    openingHomeMoneyline?: number;
+    openingAwayMoneyline?: number;
+    sport: string;
+    gameTime: string;
+    homeLogo?: string | null;
+    awayLogo?: string | null;
+  };
   prediction: {
     pickTeam: string;
     pickString: string;
     pickOdds: number;
+    pickType: 'moneyline' | 'spread' | 'total';
     confidence: number;
     confidenceStars: number;
     edge: number;
@@ -1329,13 +1388,28 @@ function EnhancedAIPredictionCard({
     homeWinProb: number;
     awayWinProb: number;
   };
+  homeRating: { rating: number; rank: number; wins: number; losses: number } | null;
+  awayRating: { rating: number; rank: number; wins: number; losses: number } | null;
+  conditions: { homeInjuries: Array<{ name: string; status: string; impactScore: number }>; awayInjuries: Array<{ name: string; status: string; impactScore: number }>; restDays: { home: number; away: number }; notes: string[] } | null;
+  bettingSplit?: { homeMoneyPct: number | null; awayMoneyPct: number | null; homeBetPct: number | null; awayBetPct: number | null; source: string } | null;
   onTakePick: () => void;
 }) {
   const timeStr = formatGameTime(game.gameTime);
   const dateStr = formatGameDate(game.gameTime);
-  
+
   const isHighValue = prediction.valueRating >= 4;
   const gameStarted = new Date(game.gameTime) < new Date();
+  const grade = getValueRatingGrade(prediction.valueRating);
+  const isHomePick = prediction.pickString.includes(game.homeTeam);
+  const fairOdds = probabilityToAmericanOdds(
+    isHomePick ? prediction.homeWinProb / 100 : prediction.awayWinProb / 100
+  );
+  const ev = (prediction.edge / 100);
+  const ratingDelta = homeRating && awayRating ? homeRating.rating - awayRating.rating : null;
+  const homeRank = homeRating?.rank;
+  const awayRank = awayRating?.rank;
+  const openingOdds = isHomePick ? game.openingHomeMoneyline : game.openingAwayMoneyline;
+  const lineMovement = calculateLineMovement(prediction.pickOdds, openingOdds, prediction.pickTeam);
   
   return (
     <div className="glass-card rounded-2xl overflow-hidden group hover:border-white/15 transition-all duration-300 flex flex-col min-h-[380px]">
@@ -1347,9 +1421,12 @@ function EnhancedAIPredictionCard({
             {dateStr} • {timeStr}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Zap size={12} className="text-tertiary" />
-          <span className="text-[10px] font-bold text-tertiary">ENSEMBLE</span>
+        <div className="flex items-center gap-2">
+          <GradeBadge grade={grade} />
+          <div className="flex items-center gap-1.5">
+            <Zap size={12} className="text-tertiary" />
+            <span className="text-[10px] font-bold text-tertiary">ENSEMBLE</span>
+          </div>
         </div>
       </div>
 
@@ -1366,10 +1443,21 @@ function EnhancedAIPredictionCard({
               )}
             </div>
             <p className="font-semibold text-xs text-center w-full px-1 truncate">{game.awayTeam}</p>
+            {awayRank != null && (
+              <p className="text-[9px] text-on-surface-variant mt-0.5">Rank #{awayRank}</p>
+            )}
           </div>
 
           <div className="px-3 flex flex-col items-center">
             <span className="text-on-surface-variant font-bold text-sm">@</span>
+            {ratingDelta != null && (
+              <span className={cn(
+                'mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded border',
+                ratingDelta > 0 ? 'bg-tertiary/10 text-tertiary border-tertiary/20' : 'bg-error/10 text-error border-error/20'
+              )}>
+                {ratingDelta > 0 ? '+' : ''}{ratingDelta.toFixed(1)}
+              </span>
+            )}
           </div>
 
           {/* Home Team */}
@@ -1382,6 +1470,9 @@ function EnhancedAIPredictionCard({
               )}
             </div>
             <p className="font-semibold text-xs text-center w-full px-1 truncate">{game.homeTeam}</p>
+            {homeRank != null && (
+              <p className="text-[9px] text-on-surface-variant mt-0.5">Rank #{homeRank}</p>
+            )}
           </div>
         </div>
 
@@ -1401,6 +1492,14 @@ function EnhancedAIPredictionCard({
                 <Sparkles size={12} />
               </div>
               <p className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Best Pick</p>
+              <span className={cn(
+                'text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border',
+                prediction.pickType === 'moneyline' ? 'bg-primary/10 text-primary border-primary/20' :
+                prediction.pickType === 'spread' ? 'bg-secondary/10 text-secondary border-secondary/20' :
+                'bg-tertiary/10 text-tertiary border-tertiary/20'
+              )}>
+                {prediction.pickType}
+              </span>
             </div>
             <div className="flex gap-0.5">
               {Array(5).fill(0).map((_, i) => (
@@ -1425,7 +1524,13 @@ function EnhancedAIPredictionCard({
               {formatOdds(prediction.pickOdds)}
             </span>
           </div>
-          
+
+          {lineMovement.hasOpening && (
+            <div className="mb-2">
+              <LineMovementAlert movement={lineMovement} />
+            </div>
+          )}
+
           <div className="flex items-center justify-between mt-auto">
             {prediction.edge > 3 ? (
               <span className={cn(
@@ -1455,7 +1560,38 @@ function EnhancedAIPredictionCard({
               <p className="text-[8px] font-bold uppercase text-on-surface-variant mb-1">Away Win</p>
               <p className="font-semibold text-sm">{prediction.awayWinProb?.toFixed(1) || '50'}%</p>
             </div>
+            <div className="bg-surface-container-high/50 rounded-lg p-2.5 border border-white/5">
+              <p className="text-[8px] font-bold uppercase text-on-surface-variant mb-1">True Odds</p>
+              <p className="font-semibold text-sm">{fairOdds > 0 ? '+' : ''}{fairOdds}</p>
+            </div>
+            <div className="bg-surface-container-high/50 rounded-lg p-2.5 border border-white/5">
+              <p className="text-[8px] font-bold uppercase text-on-surface-variant mb-1">+EV</p>
+              <p className={cn('font-semibold text-sm', ev >= 0 ? 'text-tertiary' : 'text-error')}>
+                {ev >= 0 ? '+' : ''}{(ev * 100).toFixed(1)}%
+              </p>
+            </div>
           </div>
+        </div>
+
+        {/* Game Conditions */}
+        <div className="mt-3">
+          <GameConditionsAlert
+            conditions={conditions}
+            homeTeam={game.homeTeam}
+            awayTeam={game.awayTeam}
+            compact
+          />
+        </div>
+
+        {/* Public Betting Splits */}
+        <div className="mt-2">
+          <BettingSplitsBadge
+            split={bettingSplit}
+            homeTeam={game.homeTeam}
+            awayTeam={game.awayTeam}
+            selectedSide={prediction.pickTeam}
+            compact
+          />
         </div>
 
         {/* Take Pick Button */}

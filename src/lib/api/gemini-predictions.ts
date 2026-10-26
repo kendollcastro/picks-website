@@ -1,9 +1,11 @@
 // ============================================
 // KCMPICKS - Gemini AI Prediction Service
-// Uses Google Gemini for AI-powered game predictions
+// Uses Google Gemini for AI-powered game predictions.
+// SERVER-ONLY: uses GEMINI_API_KEY. This file is not imported by client
+// components; keep it that way to avoid exposing the key in the browser.
 // ============================================
 
-const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = 'gemini-2.0-flash';
 
 export interface GameContext {

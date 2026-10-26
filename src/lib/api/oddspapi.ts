@@ -2,7 +2,9 @@
 // KCMPICKS - OddsPapi Client Service
 // https://oddspapi.com (FREE: 250 requests/month, incl. Pinnacle)
 // Moneyline (1X2) odds channel — the only OddsPapi market currently integrated.
-// Uses NEXT_PUBLIC_ODDSPAPI_KEY. Fall back to mock data when unavailable.
+// SERVER-ONLY: uses the server-side ODDS_PAPI_KEY env var. The browser
+// client lives in oddspapi-client.ts and calls /api/oddspapi so the key
+// is never exposed in the client bundle.
 // ============================================
 
 const ODDS_PAPI_BASE = 'https://api.oddspapi.io/v4';
@@ -50,10 +52,12 @@ export async function fetchOddsPapiGames(
   sport: string,
   limit: number = 10
 ): Promise<OddsPapiGame[]> {
-  const apiKey = process.env.NEXT_PUBLIC_ODDSPAPI_KEY;
+  // Server-side only: never use NEXT_PUBLIC_ for this key. The browser
+  // reaches OddsPapi through /api/oddspapi (see oddspapi-client.ts).
+  const apiKey = process.env.ODDS_PAPI_KEY || process.env.ODDSPAPI_KEY;
 
   if (!apiKey) {
-    console.warn('No OddsPapi key configured');
+    console.warn('No OddsPapi key configured (set ODDS_PAPI_KEY server-side)');
     return [];
   }
 

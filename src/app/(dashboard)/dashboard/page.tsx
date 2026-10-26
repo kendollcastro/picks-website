@@ -4,10 +4,12 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { cn, formatGameTime, formatGameDate } from '@/lib/utils';
+import { cn, formatGameTime, formatGameDate, getValueRatingGrade, probabilityToAmericanOdds } from '@/lib/utils';
 import { useLiveData, usePredictions, type LiveGame, type Prediction } from '@/hooks/useLiveData';
+import { useTopPickRecord } from '@/hooks/useTopPickRecord';
 import { useUser } from '@/contexts/UserContext';
 import { usePicks } from '@/hooks/usePicks';
+import { GradeBadge } from '@/components/ui/GradeBadge';
 import {
   TrendingUp,
   TrendingDown,
@@ -40,6 +42,7 @@ export default function DashboardPage() {
   const { stats: userStats } = usePicks();
   const { games, loading: gamesLoading, refresh: refreshGames } = useLiveData(selectedSport);
   const { predictions, loading: predsLoading, refresh: refreshPreds } = usePredictions(selectedSport);
+  const { data: recordData, loading: recordLoading } = useTopPickRecord();
 
   const liveGames = games.filter(g => g.isLive);
   const scheduledGames = games.filter(g => !g.isLive && g.status !== 'Final');
@@ -226,6 +229,105 @@ export default function DashboardPage() {
               {userStats?.total_picks || 0}
             </h3>
             <p className="text-readable text-on-surface-variant">Total Picks</p>
+          </motion.div>
+        </div>
+      </motion.section>
+
+      {/* Model Performance */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+      >
+        <div className="flex justify-between items-end mb-4">
+          <h2 className="font-['Space_Grotesk'] text-xl font-bold tracking-tight">
+            Model Performance
+          </h2>
+          <Link href="/history" className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 font-medium">
+            View History <ChevronRight size={12} />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="glass-card rounded-2xl p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                <Target size={18} />
+              </div>
+              {recordLoading && <Loader2 size={14} className="animate-spin text-on-surface-variant" />}
+            </div>
+            <h3 className="font-['Space_Grotesk'] text-2xl font-black mb-1">
+              {recordData?.record?.graded ?? 0}
+            </h3>
+            <p className="text-readable text-on-surface-variant">Model Picks Graded</p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="glass-card rounded-2xl p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-9 h-9 rounded-xl bg-tertiary/10 text-tertiary flex items-center justify-center">
+                <TrendingUp size={18} />
+              </div>
+            </div>
+            <h3 className={cn(
+              "font-['Space_Grotesk'] text-2xl font-black mb-1",
+              (recordData?.record?.winRate ?? 0) >= 0.5 ? 'text-tertiary' : 'text-error'
+            )}>
+              {recordData?.record?.winRate != null
+                ? `${(recordData.record.winRate * 100).toFixed(1)}%`
+                : '--'}
+            </h3>
+            <p className="text-readable text-on-surface-variant">Model Win Rate</p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="glass-card rounded-2xl p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-9 h-9 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center">
+                <DollarSign size={18} />
+              </div>
+            </div>
+            <h3 className={cn(
+              "font-['Space_Grotesk'] text-2xl font-black mb-1",
+              (recordData?.record?.roi ?? 0) >= 0 ? 'text-tertiary' : 'text-error'
+            )}>
+              {recordData?.record?.roi != null
+                ? `${recordData.record.roi >= 0 ? '+' : ''}${recordData.record.roi.toFixed(1)}%`
+                : '--'}
+            </h3>
+            <p className="text-readable text-on-surface-variant">Model ROI</p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="glass-card rounded-2xl p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-9 h-9 rounded-xl bg-kcm-orange/10 text-kcm-orange flex items-center justify-center">
+                <Activity size={18} />
+              </div>
+            </div>
+            <h3 className="font-['Space_Grotesk'] text-2xl font-black mb-1">
+              {recordData?.record?.avgEdge != null
+                ? `${recordData.record.avgEdge >= 0 ? '+' : ''}${recordData.record.avgEdge.toFixed(1)}pts`
+                : '--'}
+            </h3>
+            <p className="text-readable text-on-surface-variant">Avg Edge</p>
           </motion.div>
         </div>
       </motion.section>
@@ -438,14 +540,9 @@ function ScheduledGameCard({ game }: { game: LiveGame }) {
 }
 
 function PredictionCard({ prediction }: { prediction: Prediction }) {
-  const stars = Array(5).fill(0).map((_, i) => (
-    <Star
-      key={i}
-      size={14}
-      className={i < prediction.valueRating ? 'text-tertiary' : 'text-surface-container-highest'}
-      fill={i < prediction.valueRating ? 'currentColor' : 'none'}
-    />
-  ));
+  const grade = getValueRatingGrade(prediction.valueRating);
+  const fairHomeOdds = probabilityToAmericanOdds(prediction.homeWinProb / 100);
+  const fairAwayOdds = probabilityToAmericanOdds(prediction.awayWinProb / 100);
 
   return (
     <div className="glass-card rounded-2xl p-5 border group hover:border-white/15 transition-all duration-300">
@@ -460,7 +557,7 @@ function PredictionCard({ prediction }: { prediction: Prediction }) {
             {prediction.homeTeam} <span className="text-on-surface-variant">vs</span> {prediction.awayTeam}
           </p>
         </div>
-        <div className="flex gap-0.5">{stars}</div>
+        <GradeBadge grade={grade} />
       </div>
 
       {/* Win Probability Bar */}
@@ -470,7 +567,7 @@ function PredictionCard({ prediction }: { prediction: Prediction }) {
           <span className="text-xs text-on-surface-variant">{prediction.awayTeam}</span>
         </div>
         <div className="relative h-3 bg-surface-container-high rounded-full overflow-hidden">
-          <div 
+          <div
             className="absolute left-0 top-0 h-full bg-gradient-to-r from-primary to-primary-container rounded-full transition-all duration-500"
             style={{ width: `${prediction.homeWinProb}%` }}
           />
@@ -482,12 +579,26 @@ function PredictionCard({ prediction }: { prediction: Prediction }) {
         </div>
       </div>
 
+      {/* True Odds / EV */}
+      <div className="flex items-center justify-between gap-2 mb-3 text-[11px]">
+        <div className="flex-1 bg-surface-container-high rounded-lg px-2.5 py-2 text-center">
+          <span className="block text-on-surface-variant mb-0.5">True Odds</span>
+          <span className="font-bold text-on-surface">{fairHomeOdds > 0 ? '+' : ''}{fairHomeOdds}</span>
+        </div>
+        <div className="flex-1 bg-surface-container-high rounded-lg px-2.5 py-2 text-center">
+          <span className="block text-on-surface-variant mb-0.5">Edge</span>
+          <span className={cn('font-bold', prediction.edge >= 0 ? 'text-tertiary' : 'text-error')}>
+            {prediction.edge >= 0 ? '+' : ''}{prediction.edge.toFixed(1)}%
+          </span>
+        </div>
+      </div>
+
       {/* Pick */}
       <div className={cn(
         'px-4 py-3 rounded-xl text-center font-bold',
-        prediction.valueRating >= 4 
-          ? 'bg-tertiary/10 text-tertiary border border-tertiary/20' 
-          : prediction.valueRating >= 3 
+        prediction.valueRating >= 4
+          ? 'bg-tertiary/10 text-tertiary border border-tertiary/20'
+          : prediction.valueRating >= 3
             ? 'bg-primary/10 text-primary border border-primary/20'
             : 'bg-surface-container-high text-on-surface-variant border border-white/5'
       )}>

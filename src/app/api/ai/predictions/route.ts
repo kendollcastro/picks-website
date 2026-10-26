@@ -6,22 +6,48 @@
 
 import { NextResponse } from 'next/server';
 import { getJevPrediction, type JevContext } from '@/lib/api/jev-predictions';
+import { requireAuth } from '@/lib/api/auth';
+import { checkRateLimit } from '@/lib/api/rate-limit';
+import { applyCors, handleOptions } from '@/lib/api/cors';
 
 export const dynamic = 'force-dynamic';
 
+export async function OPTIONS() {
+  return handleOptions();
+}
+
 export async function POST(request: Request) {
+  const auth = await requireAuth();
+  if (auth.response) return applyCors(auth.response);
+
+  const rate = checkRateLimit(
+    `ai:predictions:${auth.user.id}`,
+    30,
+    60 * 60 * 1000
+  );
+  if (!rate.allowed) {
+    return applyCors(
+      NextResponse.json(
+        { error: 'Rate limit exceeded' },
+        { status: 429, headers: { 'Retry-After': String(rate.retryAfter) } }
+      )
+    );
+  }
+
   let body: Partial<JevContext>;
 
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return applyCors(NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }));
   }
 
   if (!body.homeTeam || !body.awayTeam || !body.sport) {
-    return NextResponse.json(
-      { error: 'Missing required fields: homeTeam, awayTeam, sport' },
-      { status: 400 }
+    return applyCors(
+      NextResponse.json(
+        { error: 'Missing required fields: homeTeam, awayTeam, sport' },
+        { status: 400 }
+      )
     );
   }
 
@@ -41,11 +67,13 @@ export async function POST(request: Request) {
   });
 
   if (!prediction) {
-    return NextResponse.json(
-      { error: 'AI prediction unavailable. Check OPENROUTER_API_KEY.' },
-      { status: 502 }
+    return applyCors(
+      NextResponse.json(
+        { error: 'AI prediction unavailable. Check OPENROUTER_API_KEY.' },
+        { status: 502 }
+      )
     );
   }
 
-  return NextResponse.json({ prediction });
+  return applyCors(NextResponse.json({ prediction }));
 }

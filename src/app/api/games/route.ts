@@ -56,6 +56,15 @@ interface GameRow {
   total: number | null;
   over_odds: number | null;
   under_odds: number | null;
+  opening_home_moneyline: number | null;
+  opening_away_moneyline: number | null;
+  opening_spread: number | null;
+  opening_home_spread_odds: number | null;
+  opening_away_spread_odds: number | null;
+  opening_total: number | null;
+  opening_over_odds: number | null;
+  opening_under_odds: number | null;
+  opening_odds_captured_at: string | null;
   odds_captured_at: string | null;
   updated_at: string | null;
 }
@@ -88,6 +97,15 @@ export interface GameOdds {
   total: number | null;
   overOdds: number | null;
   underOdds: number | null;
+  openingHomeMoneyline: number | null;
+  openingAwayMoneyline: number | null;
+  openingSpread: number | null;
+  openingHomeSpreadOdds: number | null;
+  openingAwaySpreadOdds: number | null;
+  openingTotal: number | null;
+  openingOverOdds: number | null;
+  openingUnderOdds: number | null;
+  openingOddsCapturedAt: string | null;
   oddsCapturedAt: string | null;
   updatedAt: string | null;
 }
@@ -120,6 +138,15 @@ function rowToGame(row: GameRow): GameOdds {
     total: row.total === null ? null : Number(row.total),
     overOdds: row.over_odds,
     underOdds: row.under_odds,
+    openingHomeMoneyline: row.opening_home_moneyline,
+    openingAwayMoneyline: row.opening_away_moneyline,
+    openingSpread: row.opening_spread === null ? null : Number(row.opening_spread),
+    openingHomeSpreadOdds: row.opening_home_spread_odds,
+    openingAwaySpreadOdds: row.opening_away_spread_odds,
+    openingTotal: row.opening_total === null ? null : Number(row.opening_total),
+    openingOverOdds: row.opening_over_odds,
+    openingUnderOdds: row.opening_under_odds,
+    openingOddsCapturedAt: row.opening_odds_captured_at,
     oddsCapturedAt: row.odds_captured_at,
     updatedAt: row.updated_at,
   };
@@ -127,12 +154,12 @@ function rowToGame(row: GameRow): GameOdds {
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  // Service role stays server-side; the games table also allows public read,
-  // but service role avoids any RLS surprises from the route layer.
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Service role stays server-side. Never fall back to the anon key; doing so
+  // would silently change permissions and could break RLS assumptions.
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
+    console.error('[games] Supabase service role not configured');
     return null;
   }
   return createClient(url, key, {

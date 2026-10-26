@@ -49,6 +49,7 @@ export interface Prediction {
   confidence: number;
   pick: string;
   valueRating: number;
+  edge: number;
   reasoning: string[];
 }
 
@@ -581,11 +582,9 @@ async function fetchHistoricalOdds(sport: string, daysBack: number = 30): Promis
   if (!sportKey) return [];
 
   try {
-    const apiKey = process.env.NEXT_PUBLIC_ODDS_API_KEY || '';
-    if (!apiKey) return [];
-
     const response = await fetch(
-      `https://api.the-odds-api.com/v4/sports/${sportKey}/historical/?apiKey=${apiKey}&regions=us&daysFrom=${daysBack}&oddsFormat=american`
+      `/api/historical-odds?sport=${sport}&daysBack=${daysBack}`,
+      { cache: 'no-store' }
     );
 
     if (!response.ok) return [];
@@ -841,6 +840,7 @@ function generateHeuristicPrediction(game: GameOdds): Prediction {
     confidence,
     pick: favorite,
     valueRating,
+    edge,
     reasoning: [
       `Odds imply ${favorite} has ${homeProb > awayProb ? homeProb.toFixed(1) : awayProb.toFixed(1)}% win probability`,
       `Home advantage adds ~3%`,

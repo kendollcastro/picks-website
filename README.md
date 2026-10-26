@@ -27,12 +27,39 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-### 3. Run Development Server
+### 3. Configure API Keys (server-side only)
+
+Copy `.env.example` to `.env.local` and fill in your real values. **Never commit `.env.local`.**
+
+Server-side keys must NOT use the `NEXT_PUBLIC_` prefix:
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Sports APIs (server-side only)
+ODDS_API_KEY=your_odds_api_key
+ODDS_PAPI_KEY=your_oddspapi_key
+
+# AI (server-side only)
+OPENROUTER_API_KEY=your_openrouter_key
+```
+
+### 4. Run Development Server
 ```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
+
+## 🔒 Security Notes
+
+- See `docs/security-remediation.md` for the latest security audit and remediation status.
+- All paid API keys are kept server-side and accessed through `/api/*` proxy routes.
+- The service-role key is never exposed to the browser.
+- Rotate any exposed keys immediately; never store real secrets in committed `.env` files.
 
 ## 🏗️ Tech Stack
 

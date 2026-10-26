@@ -4,10 +4,18 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { createClient } from '@/lib/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 
+export interface NotificationPrefs {
+  picks?: boolean;
+  results?: boolean;
+  promotions?: boolean;
+  newsletter?: boolean;
+}
+
 interface Profile {
   id: string;
   username: string;
   avatar_url: string | null;
+  notifications?: NotificationPrefs | null;
   created_at: string;
 }
 
