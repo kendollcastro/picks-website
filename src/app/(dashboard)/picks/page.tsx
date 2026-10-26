@@ -223,7 +223,7 @@ export default function SportsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [jevSort, setJevSort] = useState<'safest' | 'ev' | 'edge'>('safest');
+  const [jevSort, setJevSort] = useState<'date' | 'safest' | 'ev' | 'edge'>('date');
   const [showModelRecord, setShowModelRecord] = useState(() => {
     try {
       return localStorage.getItem('kcm:hideModelRecord') !== 'true';
@@ -773,6 +773,7 @@ export default function SportsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {[
+                        { id: 'date', label: 'Game Time', icon: <Clock size={12} /> },
                         { id: 'safest', label: 'Safest', icon: <ShieldCheck size={12} /> },
                         { id: 'ev', label: 'Best +EV', icon: <DollarSign size={12} /> },
                         { id: 'edge', label: 'Biggest Edge', icon: <TrendingUp size={12} /> },
@@ -796,6 +797,9 @@ export default function SportsPage() {
 
                   {(() => {
                     const sorted = [...jevResult.picks].sort((a, b) => {
+                      if (jevSort === 'date') {
+                        return new Date(a.game.gameTime).getTime() - new Date(b.game.gameTime).getTime();
+                      }
                       if (jevSort === 'safest') {
                         const scoreA = a.confidence * 100 + a.candidate.jevProbability * 100 + a.candidate.edge;
                         const scoreB = b.confidence * 100 + b.candidate.jevProbability * 100 + b.candidate.edge;
