@@ -223,7 +223,7 @@ export default function SportsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [jevSort, setJevSort] = useState<'date' | 'safest' | 'ev' | 'edge'>('date');
+  const [jevSort, setJevSort] = useState<'date' | 'safest' | 'ev' | 'edge'>('safest');
   const [showModelRecord, setShowModelRecord] = useState(() => {
     try {
       return localStorage.getItem('kcm:hideModelRecord') !== 'true';

@@ -957,9 +957,11 @@ export async function generateTopPicks(
       minEv,
     });
 
+    // Select best candidate by HIGHEST CONFIDENCE (jevProbability) instead of EV
+    // This ensures the "top pick" is the one Jev is most confident about
     const best = [...candidates]
       .filter((c) => c.jevProbability >= 0.45)
-      .sort((a, b) => b.expectedValue - a.expectedValue)[0];
+      .sort((a, b) => b.jevProbability - a.jevProbability)[0];
     if (!best) return null;
 
     const confidence = clamp(
